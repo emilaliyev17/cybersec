@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import TrainingViewer from './TrainingViewer';
+import VideoTraining from './VideoTraining';
 import Quiz from './Quiz';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -50,15 +51,27 @@ export default function Dashboard() {
   const totalModules = modules.length;
   const progressPercentage = totalModules > 0 ? Math.round((completedModules / totalModules) * 100) : 0;
 
+  // Get selected module to determine type
+  const selectedModule = modules.find(m => m.id === selectedModuleId);
+  const isVideoModule = selectedModule?.content_json?.type === 'video';
+
   // View Routing
   if (selectedModuleId) {
     return (
       <div className="min-h-screen bg-dark-900">
-        <TrainingViewer
-          moduleId={selectedModuleId}
-          onComplete={handleModuleComplete}
-          onBack={() => setSelectedModuleId(null)}
-        />
+        {isVideoModule ? (
+          <VideoTraining
+            moduleId={selectedModuleId}
+            onComplete={handleModuleComplete}
+            onBack={() => setSelectedModuleId(null)}
+          />
+        ) : (
+          <TrainingViewer
+            moduleId={selectedModuleId}
+            onComplete={handleModuleComplete}
+            onBack={() => setSelectedModuleId(null)}
+          />
+        )}
       </div>
     );
   }
