@@ -1,20 +1,30 @@
 import { useAuth } from './context/AuthContext';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
+import AdminDashboard from './components/admin/AdminDashboard';
 
 export default function App() {
-  const { isAuthenticated, loading } = useAuth();
+  const { user, isAuthenticated, loading } = useAuth();
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[#0F172A] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
-          <p className="text-gray-500">Loading...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-nano-blue mx-auto mb-4"></div>
+          <p className="text-gray-400">Loading...</p>
         </div>
       </div>
     );
   }
 
-  return isAuthenticated ? <Dashboard /> : <Login />;
+  if (!isAuthenticated) {
+    return <Login />;
+  }
+
+  // Show admin panel for admin/manager roles
+  if (user?.role === 'admin' || user?.role === 'manager') {
+    return <AdminDashboard />;
+  }
+
+  return <Dashboard />;
 }

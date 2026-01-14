@@ -28,4 +28,11 @@ const generateToken = (user) => {
   );
 };
 
-module.exports = { authMiddleware, generateToken, JWT_SECRET };
+const adminMiddleware = (req, res, next) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'manager') {
+    return res.status(403).json({ error: 'Access denied. Admin or Manager role required.' });
+  }
+  next();
+};
+
+module.exports = { authMiddleware, generateToken, adminMiddleware, JWT_SECRET };
