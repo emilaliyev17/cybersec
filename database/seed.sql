@@ -316,7 +316,10 @@ INSERT INTO quiz_questions (module_id, question_text, options_json, correct_answ
 -- SAMPLE USERS (for testing)
 -- ============================================
 
+-- Password for emil@strategybrix.com is: Admin123!
+-- Hash generated with bcrypt (10 rounds)
 INSERT INTO users (name, email, password_hash, role, hire_date) VALUES
+('Emil Aliyev', 'emil@strategybrix.com', '$2b$10$rQZ5xzPJvNqJHqHzV.6wOu8KQxQz0QF5kxK8nqZLVvqW8uxQZvxLe', 'admin', '2023-01-01'),
 ('John Smith', 'john.smith@company.com', '$2b$10$example.hash.for.demo.only', 'employee', '2025-01-15'),
 ('Sarah Johnson', 'sarah.johnson@company.com', '$2b$10$example.hash.for.demo.only', 'employee', '2025-01-10'),
 ('Mike Wilson', 'mike.wilson@company.com', '$2b$10$example.hash.for.demo.only', 'manager', '2024-06-01'),

@@ -12,7 +12,7 @@ router.use(adminMiddleware);
 // DASHBOARD STATS
 // ============================================
 
-// GET /api/admin/stats - Get dashboard statistics
+// GET /api/admin/stats - Get dashboard statistics (with track info)
 router.get('/stats', async (req, res) => {
   try {
     const stats = await pool.query(`
@@ -22,7 +22,10 @@ router.get('/stats', async (req, res) => {
         (SELECT COUNT(*) FROM training_modules WHERE is_active = true) as total_modules,
         (SELECT COUNT(*) FROM quiz_attempts) as total_quiz_attempts,
         (SELECT COUNT(*) FROM quiz_attempts WHERE passed = true) as passed_attempts,
-        (SELECT AVG(score) FROM quiz_attempts) as average_score
+        (SELECT AVG(score) FROM quiz_attempts) as average_score,
+        (SELECT COUNT(*) FROM users WHERE training_track_id = (SELECT id FROM training_tracks WHERE name = 'FULL')) as full_track_users,
+        (SELECT COUNT(*) FROM users WHERE training_track_id = (SELECT id FROM training_tracks WHERE name = 'CONDENSED')) as condensed_track_users,
+        (SELECT COUNT(*) FROM users WHERE training_track_id IS NULL) as unassigned_users
     `);
 
     res.json({ stats: stats.rows[0] });
@@ -36,7 +39,7 @@ router.get('/stats', async (req, res) => {
 // USER MANAGEMENT
 // ============================================
 
-// GET /api/admin/users - Get all users with progress
+// GET /api/admin/users - Get all users with progress (includes track info)
 router.get('/users', async (req, res) => {
   try {
     const result = await pool.query(`
@@ -48,14 +51,18 @@ router.get('/users', async (req, res) => {
         u.hire_date,
         u.is_certified,
         u.certification_date,
+        u.training_track_id,
+        tt.name as track_name,
+        tt.display_name as track_display_name,
         u.created_at,
         COUNT(CASE WHEN up.is_completed THEN 1 END) as completed_modules,
         COUNT(up.module_id) as total_modules,
         (SELECT MAX(score) FROM quiz_attempts qa WHERE qa.user_id = u.id) as best_quiz_score,
         (SELECT COUNT(*) FROM quiz_attempts qa WHERE qa.user_id = u.id) as quiz_attempts
       FROM users u
+      LEFT JOIN training_tracks tt ON u.training_track_id = tt.id
       LEFT JOIN user_progress up ON u.id = up.user_id
-      GROUP BY u.id
+      GROUP BY u.id, tt.name, tt.display_name
       ORDER BY u.created_at DESC
     `);
 
@@ -135,6 +142,57 @@ router.put('/users/:id/role', async (req, res) => {
   } catch (error) {
     console.error('Update role error:', error);
     res.status(500).json({ error: 'Server error updating role' });
+  }
+});
+
+// PUT /api/admin/users/:id/track - Update user's training track
+router.put('/users/:id/track', async (req, res) => {
+  const { id } = req.params;
+  const { trackId } = req.body;
+
+  try {
+    // Verify track exists if trackId provided
+    if (trackId) {
+      const trackCheck = await pool.query('SELECT id FROM training_tracks WHERE id = $1', [trackId]);
+      if (trackCheck.rows.length === 0) {
+        return res.status(404).json({ error: 'Track not found' });
+      }
+    }
+
+    // Update user's track assignment
+    const result = await pool.query(
+      'UPDATE users SET training_track_id = $1 WHERE id = $2 RETURNING id, name, email, training_track_id',
+      [trackId || null, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Initialize progress records for track modules
+    if (trackId) {
+      await pool.query(`
+        INSERT INTO user_progress (user_id, module_id, is_completed, watched_seconds)
+        SELECT $1, tm.module_id, FALSE, 0
+        FROM track_modules tm
+        WHERE tm.track_id = $2
+        ON CONFLICT (user_id, module_id) DO NOTHING
+      `, [id, trackId]);
+
+      // Initialize checklist progress if applicable
+      await pool.query(`
+        INSERT INTO user_checklist_progress (user_id, checklist_item_id, is_completed)
+        SELECT $1, oci.id, FALSE
+        FROM onboarding_checklist_items oci
+        WHERE oci.track_id = $2
+        ON CONFLICT (user_id, checklist_item_id) DO NOTHING
+      `, [id, trackId]);
+    }
+
+    res.json({ user: result.rows[0], message: 'Track updated successfully' });
+  } catch (error) {
+    console.error('Update track error:', error);
+    res.status(500).json({ error: 'Server error updating track' });
   }
 });
 

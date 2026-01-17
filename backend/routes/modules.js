@@ -4,30 +4,67 @@ const { authMiddleware } = require('../middleware/auth');
 
 const router = express.Router();
 
-// GET /api/modules - Get all training modules with user progress
+// GET /api/modules - Get training modules based on user's assigned track
 router.get('/', authMiddleware, async (req, res) => {
   try {
-    const result = await pool.query(
-      `SELECT
-        tm.id,
-        tm.title,
-        tm.description,
-        tm.content_json,
-        tm.required_time_seconds,
-        tm.module_order,
-        COALESCE(up.is_completed, FALSE) as is_completed,
-        COALESCE(up.watched_seconds, 0) as watched_seconds,
-        up.started_at,
-        up.completed_at,
-        up.updated_at
-       FROM training_modules tm
-       LEFT JOIN user_progress up ON tm.id = up.module_id AND up.user_id = $1
-       WHERE tm.is_active = TRUE
-       ORDER BY tm.module_order`,
+    // Get user's track ID
+    const userTrack = await pool.query(
+      'SELECT training_track_id FROM users WHERE id = $1',
       [req.user.id]
     );
 
-    res.json({ modules: result.rows });
+    const trackId = userTrack.rows[0]?.training_track_id;
+
+    let result;
+
+    if (trackId) {
+      // User has assigned track - return only track modules
+      result = await pool.query(
+        `SELECT
+          tm.id,
+          tm.title,
+          tm.description,
+          tm.content_json,
+          tm.required_time_seconds,
+          trm.display_order as module_order,
+          trm.is_required,
+          COALESCE(up.is_completed, FALSE) as is_completed,
+          COALESCE(up.watched_seconds, 0) as watched_seconds,
+          up.started_at,
+          up.completed_at,
+          up.updated_at
+         FROM track_modules trm
+         JOIN training_modules tm ON trm.module_id = tm.id
+         LEFT JOIN user_progress up ON tm.id = up.module_id AND up.user_id = $1
+         WHERE trm.track_id = $2 AND tm.is_active = TRUE
+         ORDER BY trm.display_order`,
+        [req.user.id, trackId]
+      );
+    } else {
+      // No track assigned - return all active modules (legacy behavior)
+      result = await pool.query(
+        `SELECT
+          tm.id,
+          tm.title,
+          tm.description,
+          tm.content_json,
+          tm.required_time_seconds,
+          tm.module_order,
+          TRUE as is_required,
+          COALESCE(up.is_completed, FALSE) as is_completed,
+          COALESCE(up.watched_seconds, 0) as watched_seconds,
+          up.started_at,
+          up.completed_at,
+          up.updated_at
+         FROM training_modules tm
+         LEFT JOIN user_progress up ON tm.id = up.module_id AND up.user_id = $1
+         WHERE tm.is_active = TRUE
+         ORDER BY tm.module_order`,
+        [req.user.id]
+      );
+    }
+
+    res.json({ modules: result.rows, trackId });
   } catch (error) {
     console.error('Get modules error:', error);
     res.status(500).json({ error: 'Server error fetching modules' });
@@ -107,26 +144,56 @@ router.post('/:id/progress', authMiddleware, async (req, res) => {
   }
 });
 
-// GET /api/modules/progress/summary - Get user's overall progress summary
+// GET /api/modules/progress/summary - Get user's overall progress summary (track-aware)
 router.get('/progress/summary', authMiddleware, async (req, res) => {
   try {
-    const result = await pool.query(
-      `SELECT
-        COUNT(tm.id) as total_modules,
-        COUNT(CASE WHEN up.is_completed THEN 1 END) as completed_modules,
-        COALESCE(SUM(up.watched_seconds), 0) as total_watched_seconds,
-        COALESCE(SUM(tm.required_time_seconds), 0) as total_required_seconds
-       FROM training_modules tm
-       LEFT JOIN user_progress up ON tm.id = up.module_id AND up.user_id = $1
-       WHERE tm.is_active = TRUE`,
+    // Get user's track ID
+    const userTrack = await pool.query(
+      'SELECT training_track_id FROM users WHERE id = $1',
       [req.user.id]
     );
 
+    const trackId = userTrack.rows[0]?.training_track_id;
+
+    let result;
+
+    if (trackId) {
+      // Track-based summary
+      result = await pool.query(
+        `SELECT
+          COUNT(tm.id) as total_modules,
+          COUNT(CASE WHEN up.is_completed THEN 1 END) as completed_modules,
+          COALESCE(SUM(up.watched_seconds), 0) as total_watched_seconds,
+          COALESCE(SUM(tm.required_time_seconds), 0) as total_required_seconds
+         FROM track_modules trm
+         JOIN training_modules tm ON trm.module_id = tm.id
+         LEFT JOIN user_progress up ON tm.id = up.module_id AND up.user_id = $1
+         WHERE trm.track_id = $2 AND tm.is_active = TRUE`,
+        [req.user.id, trackId]
+      );
+    } else {
+      // Legacy behavior - all modules
+      result = await pool.query(
+        `SELECT
+          COUNT(tm.id) as total_modules,
+          COUNT(CASE WHEN up.is_completed THEN 1 END) as completed_modules,
+          COALESCE(SUM(up.watched_seconds), 0) as total_watched_seconds,
+          COALESCE(SUM(tm.required_time_seconds), 0) as total_required_seconds
+         FROM training_modules tm
+         LEFT JOIN user_progress up ON tm.id = up.module_id AND up.user_id = $1
+         WHERE tm.is_active = TRUE`,
+        [req.user.id]
+      );
+    }
+
     const summary = result.rows[0];
+    summary.total_modules = parseInt(summary.total_modules) || 0;
+    summary.completed_modules = parseInt(summary.completed_modules) || 0;
     summary.completion_percentage = summary.total_modules > 0
       ? Math.round((summary.completed_modules / summary.total_modules) * 100)
       : 0;
-    summary.all_modules_completed = summary.completed_modules === parseInt(summary.total_modules);
+    summary.all_modules_completed = summary.completed_modules === summary.total_modules;
+    summary.track_id = trackId;
 
     res.json({ summary });
   } catch (error) {

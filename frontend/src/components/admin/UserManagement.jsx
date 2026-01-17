@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
+import TrackSelector from './TrackSelector';
 
 export default function UserManagement() {
   const [users, setUsers] = useState([]);
@@ -117,6 +118,7 @@ export default function UserManagement() {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">User</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Role</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Track</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Progress</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
                 </tr>
@@ -148,6 +150,15 @@ export default function UserManagement() {
                         'bg-gray-500/20 text-gray-400'
                       }`}>
                         {user.role}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 rounded-md text-xs font-medium ${
+                        user.track_name === 'FULL' ? 'bg-nano-blue/20 text-nano-blue' :
+                        user.track_name === 'CONDENSED' ? 'bg-nano-purple/20 text-nano-purple' :
+                        'bg-gray-500/20 text-gray-400'
+                      }`}>
+                        {user.track_display_name || 'Unassigned'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -221,6 +232,19 @@ export default function UserManagement() {
                       <option value="manager">Manager</option>
                       <option value="admin">Admin</option>
                     </select>
+                  </div>
+
+                  {/* Track Selector */}
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium text-gray-400 mb-2">Training Track</label>
+                    <TrackSelector
+                      userId={userDetails.user.id}
+                      currentTrackId={selectedUser?.training_track_id}
+                      onTrackChange={() => {
+                        fetchUsers();
+                        fetchUserDetails(userDetails.user.id);
+                      }}
+                    />
                   </div>
 
                   {/* Progress */}

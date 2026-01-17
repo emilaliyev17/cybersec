@@ -7,6 +7,9 @@ const authRoutes = require('./routes/auth');
 const modulesRoutes = require('./routes/modules');
 const quizRoutes = require('./routes/quiz');
 const adminRoutes = require('./routes/admin');
+const tracksRoutes = require('./routes/tracks');
+const checklistRoutes = require('./routes/checklist');
+const bioRoutes = require('./routes/bio');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -34,6 +37,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/modules', modulesRoutes);
 app.use('/api/quiz', quizRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/tracks', tracksRoutes);
+app.use('/api/checklist', checklistRoutes);
+app.use('/api/bio', bioRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

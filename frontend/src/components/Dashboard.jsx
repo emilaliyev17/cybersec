@@ -4,6 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import TrainingViewer from './TrainingViewer';
 import VideoTraining from './VideoTraining';
 import Quiz from './Quiz';
+import OnboardingChecklist from './OnboardingChecklist';
+import BioEditor from './BioEditor';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Dashboard() {
@@ -14,16 +16,23 @@ export default function Dashboard() {
   const [selectedModuleId, setSelectedModuleId] = useState(null);
   const [showQuiz, setShowQuiz] = useState(false);
   const [quizEligibility, setQuizEligibility] = useState(null);
+  const [userTrack, setUserTrack] = useState(null);
+  const [bioStatus, setBioStatus] = useState(null);
+  const [showBioEditor, setShowBioEditor] = useState(false);
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [modulesRes, eligibilityRes] = await Promise.all([
+      const [modulesRes, eligibilityRes, trackRes, bioStatusRes] = await Promise.all([
         axios.get('/api/modules'),
         axios.get('/api/quiz/can-take'),
+        axios.get('/api/tracks/my-track'),
+        axios.get('/api/bio/status').catch(() => ({ data: { isComplete: false, hasStarted: false } })),
       ]);
       setModules(modulesRes.data.modules);
       setQuizEligibility(eligibilityRes.data);
+      setUserTrack(trackRes.data.track);
+      setBioStatus(bioStatusRes.data);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to load data');
     } finally {
@@ -289,6 +298,86 @@ export default function Dashboard() {
                   Please complete all training modules again before retaking the assessment.
                 </p>
               </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Track-specific content */}
+        {/* FULL track: Onboarding Checklist */}
+        {userTrack?.name === 'FULL' && <OnboardingChecklist />}
+
+        {/* CONDENSED track: Bio Update Card */}
+        {userTrack?.name === 'CONDENSED' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass-card p-6 mb-8"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-nano-purple to-pink-600 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">Update Your Bio</h3>
+                  <p className="text-gray-400 text-sm">Keep your profile information current for your colleagues</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                {bioStatus?.isComplete ? (
+                  <span className="px-3 py-1.5 bg-banano-green/20 text-banano-green rounded-lg text-sm font-medium flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Completed
+                  </span>
+                ) : (
+                  <span className="px-3 py-1.5 bg-banano-yellow/20 text-banano-yellow rounded-lg text-sm font-medium">
+                    Pending
+                  </span>
+                )}
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setShowBioEditor(true)}
+                  className="px-5 py-2.5 bg-nano-purple text-white rounded-xl font-bold hover:bg-nano-purple/80 transition-colors flex items-center gap-2"
+                >
+                  {bioStatus?.isComplete ? 'Edit Bio' : 'Add Bio'}
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                  </svg>
+                </motion.button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Bio Editor Modal */}
+        <AnimatePresence>
+          {showBioEditor && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+              onClick={(e) => e.target === e.currentTarget && setShowBioEditor(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+              >
+                <BioEditor
+                  onComplete={() => {
+                    setShowBioEditor(false);
+                    fetchData();
+                  }}
+                  onClose={() => setShowBioEditor(false)}
+                />
+              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
