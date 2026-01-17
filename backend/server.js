@@ -19,6 +19,11 @@ app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true,
 }));
+
+// Trust proxy for Cloud Run
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', true);
+}
 app.use(express.json());
 
 // Request logging middleware

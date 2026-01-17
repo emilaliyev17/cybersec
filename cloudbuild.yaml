@@ -1,0 +1,102 @@
+# Cloud Build configuration for Security Onboarding App
+# Triggers on push to main branch
+
+substitutions:
+  _REGION: us-central1
+  _BACKEND_SERVICE: security-backend
+  _FRONTEND_SERVICE: security-frontend
+  _DB_INSTANCE: strategybrix-postgres
+
+steps:
+  # Step 1: Build Backend Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/${_BACKEND_SERVICE}:$COMMIT_SHA'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/${_BACKEND_SERVICE}:latest'
+      - './backend'
+    id: 'build-backend'
+
+  # Step 2: Build Frontend Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/${_FRONTEND_SERVICE}:$COMMIT_SHA'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/${_FRONTEND_SERVICE}:latest'
+      - '--build-arg'
+      - 'VITE_API_URL=https://${_BACKEND_SERVICE}-$PROJECT_ID.${_REGION}.run.app'
+      - './frontend'
+    id: 'build-frontend'
+
+  # Step 3: Push Backend image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/${_BACKEND_SERVICE}:$COMMIT_SHA'
+    id: 'push-backend'
+    waitFor: ['build-backend']
+
+  # Step 4: Push Frontend image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/${_FRONTEND_SERVICE}:$COMMIT_SHA'
+    id: 'push-frontend'
+    waitFor: ['build-frontend']
+
+  # Step 5: Deploy Backend to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - '${_BACKEND_SERVICE}'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/${_BACKEND_SERVICE}:$COMMIT_SHA'
+      - '--region'
+      - '${_REGION}'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--port'
+      - '8080'
+      - '--add-cloudsql-instances'
+      - '$PROJECT_ID:${_REGION}:${_DB_INSTANCE}'
+      - '--set-env-vars'
+      - 'NODE_ENV=production,DB_HOST=/cloudsql/$PROJECT_ID:${_REGION}:${_DB_INSTANCE},DB_NAME=security_onboarding,DB_PORT=5432'
+      - '--set-secrets'
+      - 'DB_USER=db-user:latest,DB_PASSWORD=db-password:latest,JWT_SECRET=jwt-secret:latest'
+    id: 'deploy-backend'
+    waitFor: ['push-backend']
+
+  # Step 6: Deploy Frontend to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - '${_FRONTEND_SERVICE}'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/${_FRONTEND_SERVICE}:$COMMIT_SHA'
+      - '--region'
+      - '${_REGION}'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--port'
+      - '8080'
+    id: 'deploy-frontend'
+    waitFor: ['push-frontend']
+
+images:
+  - 'gcr.io/$PROJECT_ID/${_BACKEND_SERVICE}:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/${_BACKEND_SERVICE}:latest'
+  - 'gcr.io/$PROJECT_ID/${_FRONTEND_SERVICE}:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/${_FRONTEND_SERVICE}:latest'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
