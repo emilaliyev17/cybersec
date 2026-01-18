@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ==============================================================================
-# Security Onboarding Application - Local Startup Script
+# Security Onboarding Application - Startup Script (Cloud SQL)
 # ==============================================================================
 
 cd "$(dirname "$0")"
@@ -11,72 +11,73 @@ echo "🛡️  Starting Security Onboarding System..."
 echo "=========================================="
 
 # ------------------------------------------------------------------------------
-# 0. Kill any existing processes on our ports
+# 0. Check Cloud SQL Proxy
+# ------------------------------------------------------------------------------
+PROXY_PATH="$HOME/cloud-sql-proxy"
+if [ ! -f "$PROXY_PATH" ]; then
+    echo "📥 Cloud SQL Proxy not found. Downloading..."
+    curl -o "$PROXY_PATH" https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.14.3/cloud-sql-proxy.darwin.arm64
+    chmod +x "$PROXY_PATH"
+    echo "✅ Cloud SQL Proxy installed"
+fi
+
+# ------------------------------------------------------------------------------
+# 1. Kill any existing processes on our ports
 # ------------------------------------------------------------------------------
 echo "🧹 Cleaning up old processes..."
+
+# Stop local PostgreSQL if running (we use Cloud SQL)
+brew services stop postgresql@14 2>/dev/null
+brew services stop postgresql@15 2>/dev/null
+brew services stop postgresql@16 2>/dev/null
+brew services stop postgresql 2>/dev/null
+pg_ctl stop -D /usr/local/var/postgres 2>/dev/null
+pg_ctl stop -D /opt/homebrew/var/postgres 2>/dev/null
+
+# Kill any processes on our ports
+pkill -f "cloud-sql-proxy" 2>/dev/null
+pkill -f "nodemon.*security-onboarding" 2>/dev/null
+pkill -9 -f postgres 2>/dev/null
 lsof -ti :5001 | xargs kill -9 2>/dev/null
 lsof -ti :3000 | xargs kill -9 2>/dev/null
-pkill -f "nodemon.*security-onboarding" 2>/dev/null
-sleep 1
-echo "✅ Ports 5001 and 3000 are free"
+lsof -ti :5432 | xargs kill -9 2>/dev/null
+
+sleep 2
+echo "✅ Ports cleared (local PostgreSQL stopped)"
 
 # ------------------------------------------------------------------------------
-# 1. Database Check & Setup
+# 2. Start Cloud SQL Proxy
 # ------------------------------------------------------------------------------
-echo "🗄️  Checking Database..."
+echo "🔌 Connecting to Cloud SQL..."
+$PROXY_PATH contract-management-473819:us-central1:strategybrix-postgres --port=5432 > /dev/null 2>&1 &
+PROXY_PID=$!
+sleep 3
 
-if ! command -v psql &> /dev/null; then
-    echo "❌ Error: PostgreSQL (psql) is not installed or not in PATH."
+# Check if proxy started
+if ! kill -0 $PROXY_PID 2>/dev/null; then
+    echo "❌ Failed to start Cloud SQL Proxy. Check your gcloud auth."
+    echo "   Run: gcloud auth application-default login"
     exit 1
 fi
-
-if psql -lqt | cut -d \| -f 1 | grep -qw security_onboarding; then
-    echo "✅ Database 'security_onboarding' found."
-else
-    echo "⚠️  Database 'security_onboarding' not found. Creating..."
-    createdb security_onboarding
-    if [ $? -eq 0 ]; then
-        echo "   Importing Schema..."
-        psql -d security_onboarding -f database/schema.sql
-        echo "   Seeding Data..."
-        psql -d security_onboarding -f database/seed.sql
-        echo "✅ Database created and seeded successfully."
-    else
-        echo "❌ Failed to create database. Please check your PostgreSQL setup."
-        exit 1
-    fi
-fi
+echo "✅ Connected to Cloud SQL (strategybrix-postgres)"
 
 # ------------------------------------------------------------------------------
-# 1.1 Apply Training Tracks Migration
-# ------------------------------------------------------------------------------
-echo "🔄 Checking Training Tracks migration..."
-
-if psql -d security_onboarding -tAc "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'training_tracks');" | grep -q 't'; then
-    echo "✅ Training Tracks migration already applied."
-else
-    echo "📦 Applying Training Tracks migration..."
-    psql -d security_onboarding -f database/migration_tracks.sql
-    if [ $? -eq 0 ]; then
-        echo "✅ Training Tracks migration applied successfully."
-    else
-        echo "❌ Failed to apply migration. Check database/migration_tracks.sql"
-        exit 1
-    fi
-fi
-
-# ------------------------------------------------------------------------------
-# 2. Backend Setup & Start
+# 3. Backend Setup & Start
 # ------------------------------------------------------------------------------
 echo "------------------------------------------"
 echo "🔙 Setting up Backend..."
 cd backend
 
-# Environment file check
-if [ ! -f .env ]; then
-    echo "⚠️  .env not found. Creating from .env.example..."
-    cp .env.example .env
-fi
+# Set environment variables for Cloud SQL
+export PORT=5001
+export NODE_ENV=development
+export DB_HOST=localhost
+export DB_PORT=5432
+export DB_NAME=security_onboarding
+export DB_USER=security_app
+export DB_PASSWORD=R0BrzoOYXWFkXRrqusb1ljrT
+export JWT_SECRET=$(gcloud secrets versions access latest --secret=jwt-secret 2>/dev/null || echo "dev-jwt-secret-fallback")
+export FRONTEND_URL=http://localhost:3000
 
 # Dependencies check
 if [ ! -d "node_modules" ]; then
@@ -85,7 +86,7 @@ if [ ! -d "node_modules" ]; then
 fi
 
 echo "🚀 Starting Backend Server (Port 5001)..."
-PORT=5001 npm run dev > backend.log 2>&1 &
+npm run dev > backend.log 2>&1 &
 BACKEND_PID=$!
 echo "   Backend PID: $BACKEND_PID"
 
@@ -102,7 +103,7 @@ fi
 cd "$PROJECT_ROOT"
 
 # ------------------------------------------------------------------------------
-# 3. Frontend Setup & Start
+# 4. Frontend Setup & Start
 # ------------------------------------------------------------------------------
 echo "------------------------------------------"
 echo "🖥️  Setting up Frontend..."
@@ -114,24 +115,27 @@ if [ ! -d "node_modules" ]; then
 fi
 
 # ------------------------------------------------------------------------------
-# 4. Running & Cleanup
+# 5. Running & Cleanup
 # ------------------------------------------------------------------------------
 echo "------------------------------------------"
-echo "✅ READY!"
+echo "✅ READY! (Connected to Cloud SQL)"
 echo ""
 echo "   Frontend: http://localhost:3000"
 echo "   Backend:  http://localhost:5001"
+echo "   Database: ☁️  Cloud SQL (strategybrix-postgres)"
 echo ""
 echo "   Press [Ctrl+C] to stop all servers."
 echo "------------------------------------------"
 
-# Trap exit signals to kill backend
+# Trap exit signals to kill all processes
 cleanup() {
     echo ""
     echo "🛑 Stopping servers..."
     kill $BACKEND_PID 2>/dev/null
+    kill $PROXY_PID 2>/dev/null
     lsof -ti :5001 | xargs kill -9 2>/dev/null
     lsof -ti :3000 | xargs kill -9 2>/dev/null
+    pkill -f "cloud-sql-proxy" 2>/dev/null
     echo "👋 Goodbye!"
     exit 0
 }
