@@ -49,8 +49,8 @@ export default function AdminDashboard() {
       </div>
 
       {/* Navigation Header */}
-      <nav className="glass-card mb-8 mx-4 mt-4 !rounded-2xl sticky top-4 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <nav className="glass-card mb-6 mx-2 mt-2 !rounded-2xl sticky top-2 z-50">
+        <div className="px-4">
           <div className="flex justify-between h-20">
             <div className="flex items-center">
               <div className="flex items-center gap-4">
@@ -113,7 +113,7 @@ export default function AdminDashboard() {
       </nav>
 
       {/* Mobile Tabs */}
-      <div className="md:hidden px-4 mb-6">
+      <div className="md:hidden px-2 mb-4">
         <div className="glass-card p-2 flex gap-2 overflow-x-auto">
           {tabs.map((tab) => (
             <button
@@ -131,7 +131,7 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
+      <main className="px-2 pb-8">
         {activeTab === 'overview' && (
           <Overview stats={stats} loading={loading} onRefresh={fetchStats} />
         )}

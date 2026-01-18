@@ -97,10 +97,10 @@ export default function UserManagement() {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
       {/* User List */}
-      <div className="lg:col-span-2">
-        <div className="glass-card overflow-hidden">
+      <div className="lg:col-span-9">
+        <div className="glass-card">
           <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
             <h2 className="text-xl font-bold text-white">Users ({users.length})</h2>
             <button
@@ -195,7 +195,7 @@ export default function UserManagement() {
       </div>
 
       {/* User Details Panel */}
-      <div className="lg:col-span-1">
+      <div className="lg:col-span-3">
         <AnimatePresence mode="wait">
           {selectedUser ? (
             <motion.div
