@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { apiUrl } from '../config/api';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function OnboardingChecklist() {
@@ -15,8 +16,8 @@ export default function OnboardingChecklist() {
   const fetchData = async () => {
     try {
       const [checklistRes, summaryRes] = await Promise.all([
-        axios.get('/api/checklist/by-category'),
-        axios.get('/api/checklist/summary')
+        axios.get(apiUrl('/api/checklist/by-category')),
+        axios.get(apiUrl('/api/checklist/summary'))
       ]);
       setCategories(checklistRes.data.categories);
       setSummary(summaryRes.data.summary);
@@ -35,7 +36,7 @@ export default function OnboardingChecklist() {
 
   const handleToggle = async (itemId, currentStatus) => {
     try {
-      await axios.put(`/api/checklist/${itemId}`, { is_completed: !currentStatus });
+      await axios.put(apiUrl(`/api/checklist/${itemId}`), { is_completed: !currentStatus });
       await fetchData();
     } catch (error) {
       console.error('Failed to update checklist item:', error);

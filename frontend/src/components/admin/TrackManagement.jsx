@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { apiUrl } from '../../config/api';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function TrackManagement() {
@@ -16,7 +17,7 @@ export default function TrackManagement() {
   const fetchTrackData = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/tracks/admin/all');
+      const response = await axios.get(apiUrl('/api/tracks/admin/all'));
       setTracks(response.data.tracks);
       setAllModules(response.data.allModules);
       setUserCounts(response.data.userCounts);
@@ -35,9 +36,9 @@ export default function TrackManagement() {
     setSaving(true);
     try {
       if (currentlyInTrack) {
-        await axios.delete(`/api/tracks/${trackId}/modules/${moduleId}`);
+        await axios.delete(apiUrl(`/api/tracks/${trackId}/modules/${moduleId}`));
       } else {
-        await axios.post(`/api/tracks/${trackId}/modules`, { moduleId });
+        await axios.post(apiUrl(`/api/tracks/${trackId}/modules`), { moduleId });
       }
       await fetchTrackData();
     } catch (error) {
@@ -71,7 +72,7 @@ export default function TrackManagement() {
 
     setSaving(true);
     try {
-      await axios.put(`/api/tracks/${trackId}/modules/reorder`, { moduleOrders });
+      await axios.put(apiUrl(`/api/tracks/${trackId}/modules/reorder`), { moduleOrders });
       await fetchTrackData();
     } catch (error) {
       console.error('Failed to reorder modules:', error);

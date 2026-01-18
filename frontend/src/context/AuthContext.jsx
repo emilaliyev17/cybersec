@@ -1,9 +1,8 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
+import { apiUrl } from '../config/api';
 
 const AuthContext = createContext(null);
-
-const API_URL = '/api';
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -24,7 +23,7 @@ export function AuthProvider({ children }) {
     const checkAuth = async () => {
       if (token) {
         try {
-          const response = await axios.get(`${API_URL}/auth/me`);
+          const response = await axios.get(apiUrl('/api/auth/me'));
           setUser(response.data.user);
         } catch (error) {
           console.error('Auth check failed:', error);
@@ -40,7 +39,7 @@ export function AuthProvider({ children }) {
   }, [token]);
 
   const login = async (email, password) => {
-    const response = await axios.post(`${API_URL}/auth/login`, { email, password });
+    const response = await axios.post(apiUrl('/api/auth/login'), { email, password });
     const { token: newToken, user: userData } = response.data;
     localStorage.setItem('token', newToken);
     setToken(newToken);
@@ -49,7 +48,7 @@ export function AuthProvider({ children }) {
   };
 
   const register = async (name, email, password) => {
-    const response = await axios.post(`${API_URL}/auth/register`, { name, email, password });
+    const response = await axios.post(apiUrl('/api/auth/register'), { name, email, password });
     const { token: newToken, user: userData } = response.data;
     localStorage.setItem('token', newToken);
     setToken(newToken);
@@ -65,7 +64,7 @@ export function AuthProvider({ children }) {
 
   const refreshUser = async () => {
     try {
-      const response = await axios.get(`${API_URL}/auth/me`);
+      const response = await axios.get(apiUrl('/api/auth/me'));
       setUser(response.data.user);
     } catch (error) {
       console.error('Failed to refresh user:', error);

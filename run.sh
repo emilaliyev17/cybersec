@@ -85,7 +85,7 @@ if [ ! -d "node_modules" ]; then
 fi
 
 echo "🚀 Starting Backend Server (Port 5001)..."
-npm run dev > backend.log 2>&1 &
+PORT=5001 npm run dev > backend.log 2>&1 &
 BACKEND_PID=$!
 echo "   Backend PID: $BACKEND_PID"
 

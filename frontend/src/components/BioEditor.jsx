@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { apiUrl } from '../config/api';
 import { motion } from 'framer-motion';
 
 export default function BioEditor({ onComplete, onClose }) {
@@ -21,7 +22,7 @@ export default function BioEditor({ onComplete, onClose }) {
 
   const fetchBio = async () => {
     try {
-      const response = await axios.get('/api/bio');
+      const response = await axios.get(apiUrl('/api/bio'));
       if (response.data.bio) {
         setBio({
           ...response.data.bio,
@@ -39,7 +40,7 @@ export default function BioEditor({ onComplete, onClose }) {
     e.preventDefault();
     setSaving(true);
     try {
-      await axios.put('/api/bio', bio);
+      await axios.put(apiUrl('/api/bio'), bio);
       onComplete?.();
     } catch (error) {
       console.error('Failed to save bio:', error);

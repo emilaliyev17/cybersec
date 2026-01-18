@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
+import { apiUrl } from '../config/api';
 import { useFocusTracking } from '../hooks/useFocusTracking';
 import { motion, AnimatePresence } from 'framer-motion';
 import Confetti from 'react-confetti';
@@ -32,7 +33,7 @@ export default function Quiz({ onComplete, onBack }) {
     const fetchQuestions = async () => {
       try {
         setLoading(true);
-        const response = await axios.get('/api/quiz/questions');
+        const response = await axios.get(apiUrl('/api/quiz/questions'));
         setQuestions(response.data.questions);
       } catch (err) {
         setError(err.response?.data?.error || 'Failed to load quiz');
@@ -59,7 +60,7 @@ export default function Quiz({ onComplete, onBack }) {
 
     try {
       setSubmitting(true);
-      const response = await axios.post('/api/quiz/submit', {
+      const response = await axios.post(apiUrl('/api/quiz/submit'), {
         answers: formattedAnswers,
         time_taken_seconds: elapsedSeconds,
       });

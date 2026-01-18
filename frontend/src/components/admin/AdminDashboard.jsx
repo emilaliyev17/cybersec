@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { apiUrl } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
 import { motion } from 'framer-motion';
 import UserManagement from './UserManagement';
@@ -21,7 +22,7 @@ export default function AdminDashboard() {
   const fetchStats = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/admin/stats');
+      const response = await axios.get(apiUrl('/api/admin/stats'));
       setStats(response.data.stats);
     } catch (error) {
       console.error('Failed to fetch stats:', error);

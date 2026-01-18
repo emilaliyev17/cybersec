@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { apiUrl } from '../../config/api';
 
 export default function TrackSelector({ userId, currentTrackId, onTrackChange }) {
   const [tracks, setTracks] = useState([]);
@@ -12,7 +13,7 @@ export default function TrackSelector({ userId, currentTrackId, onTrackChange })
 
   const fetchTracks = async () => {
     try {
-      const response = await axios.get('/api/tracks');
+      const response = await axios.get(apiUrl('/api/tracks'));
       setTracks(response.data.tracks);
     } catch (error) {
       console.error('Failed to fetch tracks:', error);
@@ -25,7 +26,7 @@ export default function TrackSelector({ userId, currentTrackId, onTrackChange })
     const newTrackId = e.target.value ? parseInt(e.target.value) : null;
     setSaving(true);
     try {
-      await axios.put(`/api/admin/users/${userId}/track`, { trackId: newTrackId });
+      await axios.put(apiUrl(`/api/admin/users/${userId}/track`), { trackId: newTrackId });
       onTrackChange?.(newTrackId);
     } catch (error) {
       console.error('Failed to update track:', error);

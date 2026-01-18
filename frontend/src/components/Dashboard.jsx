@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { apiUrl } from '../config/api';
 import { useAuth } from '../context/AuthContext';
 import TrainingViewer from './TrainingViewer';
 import VideoTraining from './VideoTraining';
@@ -24,10 +25,10 @@ export default function Dashboard() {
     try {
       setLoading(true);
       const [modulesRes, eligibilityRes, trackRes, bioStatusRes] = await Promise.all([
-        axios.get('/api/modules'),
-        axios.get('/api/quiz/can-take'),
-        axios.get('/api/tracks/my-track'),
-        axios.get('/api/bio/status').catch(() => ({ data: { isComplete: false, hasStarted: false } })),
+        axios.get(apiUrl('/api/modules')),
+        axios.get(apiUrl('/api/quiz/can-take')),
+        axios.get(apiUrl('/api/tracks/my-track')),
+        axios.get(apiUrl('/api/bio/status')).catch(() => ({ data: { isComplete: false, hasStarted: false } })),
       ]);
       setModules(modulesRes.data.modules);
       setQuizEligibility(eligibilityRes.data);

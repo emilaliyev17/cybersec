@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import { apiUrl } from '../config/api';
 import { motion } from 'framer-motion';
 
 /**
@@ -19,7 +20,7 @@ export default function VideoTraining({ moduleId, onComplete, onBack }) {
     const fetchModule = async () => {
       try {
         setLoading(true);
-        const response = await axios.get(`/api/modules/${moduleId}`);
+        const response = await axios.get(apiUrl(`/api/modules/${moduleId}`));
         setModule(response.data.module);
       } catch (err) {
         setError(err.response?.data?.error || 'Failed to load module');
@@ -48,7 +49,7 @@ export default function VideoTraining({ moduleId, onComplete, onBack }) {
 
     try {
       setSaving(true);
-      await axios.post(`/api/modules/${moduleId}/progress`, {
+      await axios.post(apiUrl(`/api/modules/${moduleId}/progress`), {
         watched_seconds: 0,
         is_completed: true,
       });

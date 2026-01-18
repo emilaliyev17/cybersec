@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { apiUrl } from '../../config/api';
 import { motion } from 'framer-motion';
 
 export default function QuizResults() {
@@ -14,7 +15,7 @@ export default function QuizResults() {
   const fetchResults = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/admin/quiz/results');
+      const response = await axios.get(apiUrl('/api/admin/quiz/results'));
       setResults(response.data.results);
     } catch (error) {
       console.error('Failed to fetch results:', error);

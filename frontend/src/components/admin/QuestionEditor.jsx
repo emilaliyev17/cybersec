@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { apiUrl } from '../../config/api';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function QuestionEditor() {
@@ -31,7 +32,7 @@ export default function QuestionEditor() {
   const fetchQuestions = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/admin/quiz/questions');
+      const response = await axios.get(apiUrl('/api/admin/quiz/questions'));
       setQuestions(response.data.questions);
     } catch (error) {
       console.error('Failed to fetch questions:', error);
@@ -43,9 +44,9 @@ export default function QuestionEditor() {
   const handleSaveQuestion = async (questionData) => {
     try {
       if (questionData.id) {
-        await axios.put(`/api/admin/quiz/questions/${questionData.id}`, questionData);
+        await axios.put(apiUrl(`/api/admin/quiz/questions/${questionData.id}`), questionData);
       } else {
-        await axios.post('/api/admin/quiz/questions', questionData);
+        await axios.post(apiUrl('/api/admin/quiz/questions'), questionData);
       }
       fetchQuestions();
       setEditingQuestion(null);
@@ -62,7 +63,7 @@ export default function QuestionEditor() {
     }
 
     try {
-      await axios.delete(`/api/admin/quiz/questions/${questionId}`);
+      await axios.delete(apiUrl(`/api/admin/quiz/questions/${questionId}`));
       fetchQuestions();
     } catch (error) {
       console.error('Failed to delete question:', error);
@@ -72,7 +73,7 @@ export default function QuestionEditor() {
 
   const handleToggleActive = async (question) => {
     try {
-      await axios.put(`/api/admin/quiz/questions/${question.id}`, {
+      await axios.put(apiUrl(`/api/admin/quiz/questions/${question.id}`), {
         is_active: !question.is_active
       });
       fetchQuestions();

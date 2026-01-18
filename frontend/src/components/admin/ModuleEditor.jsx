@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { apiUrl } from '../../config/api';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function ModuleEditor() {
@@ -15,7 +16,7 @@ export default function ModuleEditor() {
   const fetchModules = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/admin/modules');
+      const response = await axios.get(apiUrl('/api/admin/modules'));
       setModules(response.data.modules);
     } catch (error) {
       console.error('Failed to fetch modules:', error);
@@ -27,9 +28,9 @@ export default function ModuleEditor() {
   const handleSaveModule = async (moduleData) => {
     try {
       if (moduleData.id) {
-        await axios.put(`/api/admin/modules/${moduleData.id}`, moduleData);
+        await axios.put(apiUrl(`/api/admin/modules/${moduleData.id}`), moduleData);
       } else {
-        await axios.post('/api/admin/modules', moduleData);
+        await axios.post(apiUrl('/api/admin/modules'), moduleData);
       }
       fetchModules();
       setEditingModule(null);
@@ -46,7 +47,7 @@ export default function ModuleEditor() {
     }
 
     try {
-      await axios.delete(`/api/admin/modules/${moduleId}`);
+      await axios.delete(apiUrl(`/api/admin/modules/${moduleId}`));
       fetchModules();
     } catch (error) {
       console.error('Failed to delete module:', error);
@@ -56,7 +57,7 @@ export default function ModuleEditor() {
 
   const handleToggleActive = async (module) => {
     try {
-      await axios.put(`/api/admin/modules/${module.id}`, {
+      await axios.put(apiUrl(`/api/admin/modules/${module.id}`), {
         is_active: !module.is_active
       });
       fetchModules();

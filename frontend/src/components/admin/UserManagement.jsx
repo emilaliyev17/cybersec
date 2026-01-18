@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { apiUrl } from '../../config/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import TrackSelector from './TrackSelector';
 
@@ -17,7 +18,7 @@ export default function UserManagement() {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/admin/users');
+      const response = await axios.get(apiUrl('/api/admin/users'));
       setUsers(response.data.users);
     } catch (error) {
       console.error('Failed to fetch users:', error);
@@ -29,7 +30,7 @@ export default function UserManagement() {
   const fetchUserDetails = async (userId) => {
     try {
       setDetailsLoading(true);
-      const response = await axios.get(`/api/admin/users/${userId}`);
+      const response = await axios.get(apiUrl(`/api/admin/users/${userId}`));
       setUserDetails(response.data);
     } catch (error) {
       console.error('Failed to fetch user details:', error);
@@ -45,7 +46,7 @@ export default function UserManagement() {
 
   const handleRoleChange = async (userId, newRole) => {
     try {
-      await axios.put(`/api/admin/users/${userId}/role`, { role: newRole });
+      await axios.put(apiUrl(`/api/admin/users/${userId}/role`), { role: newRole });
       fetchUsers();
       if (selectedUser?.id === userId) {
         fetchUserDetails(userId);
@@ -61,7 +62,7 @@ export default function UserManagement() {
     }
 
     try {
-      await axios.post(`/api/admin/users/${userId}/reset-progress`);
+      await axios.post(apiUrl(`/api/admin/users/${userId}/reset-progress`));
       fetchUsers();
       if (selectedUser?.id === userId) {
         fetchUserDetails(userId);
@@ -77,7 +78,7 @@ export default function UserManagement() {
     }
 
     try {
-      await axios.delete(`/api/admin/users/${userId}`);
+      await axios.delete(apiUrl(`/api/admin/users/${userId}`));
       fetchUsers();
       setSelectedUser(null);
       setUserDetails(null);
