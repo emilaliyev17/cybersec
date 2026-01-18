@@ -6,6 +6,7 @@ substitutions:
   _BACKEND_SERVICE: security-backend
   _FRONTEND_SERVICE: security-frontend
   _DB_INSTANCE: strategybrix-postgres
+  _BACKEND_URL: https://security-backend-ddjzfpkgoa-uc.a.run.app
 
 steps:
   # Step 1: Build Backend Docker image
@@ -28,7 +29,7 @@ steps:
       - '-t'
       - 'gcr.io/$PROJECT_ID/${_FRONTEND_SERVICE}:latest'
       - '--build-arg'
-      - 'VITE_API_URL=https://${_BACKEND_SERVICE}-$PROJECT_ID.${_REGION}.run.app'
+      - 'VITE_API_URL=${_BACKEND_URL}'
       - './frontend'
     id: 'build-frontend'
 
