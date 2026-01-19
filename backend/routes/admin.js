@@ -42,6 +42,10 @@ router.get('/stats', async (req, res) => {
 // GET /api/admin/users - Get all users with progress (includes track info)
 router.get('/users', async (req, res) => {
   try {
+    // Get total active modules count once
+    const totalModulesResult = await pool.query('SELECT COUNT(*) as count FROM training_modules WHERE is_active = true');
+    const totalActiveModules = parseInt(totalModulesResult.rows[0].count);
+
     const result = await pool.query(`
       SELECT
         u.id,
@@ -55,16 +59,18 @@ router.get('/users', async (req, res) => {
         tt.name as track_name,
         tt.display_name as track_display_name,
         u.created_at,
-        COUNT(CASE WHEN up.is_completed THEN 1 END) as completed_modules,
-        COUNT(up.module_id) as total_modules,
+        (SELECT COUNT(*) FROM user_progress up2 WHERE up2.user_id = u.id AND up2.is_completed = true) as completed_modules,
+        CASE
+          WHEN tt.name = 'FULL' THEN $1
+          WHEN u.training_track_id IS NOT NULL THEN (SELECT COUNT(*) FROM track_modules tkm WHERE tkm.track_id = u.training_track_id)
+          ELSE 0
+        END as total_modules,
         (SELECT MAX(score) FROM quiz_attempts qa WHERE qa.user_id = u.id) as best_quiz_score,
         (SELECT COUNT(*) FROM quiz_attempts qa WHERE qa.user_id = u.id) as quiz_attempts
       FROM users u
       LEFT JOIN training_tracks tt ON u.training_track_id = tt.id
-      LEFT JOIN user_progress up ON u.id = up.user_id
-      GROUP BY u.id, tt.name, tt.display_name
       ORDER BY u.created_at DESC
-    `);
+    `, [totalActiveModules]);
 
     res.json({ users: result.rows });
   } catch (error) {
@@ -79,7 +85,7 @@ router.get('/users/:id', async (req, res) => {
 
   try {
     const userResult = await pool.query(
-      'SELECT id, name, email, role, hire_date, is_certified, certification_date, created_at FROM users WHERE id = $1',
+      'SELECT id, name, email, role, hire_date, is_certified, certification_date, training_track_id, created_at FROM users WHERE id = $1',
       [id]
     );
 
@@ -171,13 +177,29 @@ router.put('/users/:id/track', async (req, res) => {
 
     // Initialize progress records for track modules
     if (trackId) {
-      await pool.query(`
-        INSERT INTO user_progress (user_id, module_id, is_completed, watched_seconds)
-        SELECT $1, tm.module_id, FALSE, 0
-        FROM track_modules tm
-        WHERE tm.track_id = $2
-        ON CONFLICT (user_id, module_id) DO NOTHING
-      `, [id, trackId]);
+      // Check if this is FULL track (uses all modules) or specific track (uses track_modules)
+      const trackInfo = await pool.query('SELECT name FROM training_tracks WHERE id = $1', [trackId]);
+      const trackName = trackInfo.rows[0]?.name;
+
+      if (trackName === 'FULL') {
+        // FULL track: create progress for ALL active modules
+        await pool.query(`
+          INSERT INTO user_progress (user_id, module_id, is_completed, watched_seconds)
+          SELECT $1, tm.id, FALSE, 0
+          FROM training_modules tm
+          WHERE tm.is_active = true
+          ON CONFLICT (user_id, module_id) DO NOTHING
+        `, [id]);
+      } else {
+        // Other tracks: create progress only for modules in track_modules
+        await pool.query(`
+          INSERT INTO user_progress (user_id, module_id, is_completed, watched_seconds)
+          SELECT $1, tkm.module_id, FALSE, 0
+          FROM track_modules tkm
+          WHERE tkm.track_id = $2
+          ON CONFLICT (user_id, module_id) DO NOTHING
+        `, [id, trackId]);
+      }
 
       // Initialize checklist progress if applicable
       await pool.query(`

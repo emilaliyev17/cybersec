@@ -240,7 +240,7 @@ export default function UserManagement() {
                     <label className="block text-sm font-medium text-gray-400 mb-2">Training Track</label>
                     <TrackSelector
                       userId={userDetails.user.id}
-                      currentTrackId={selectedUser?.training_track_id}
+                      currentTrackId={userDetails.user.training_track_id}
                       onTrackChange={() => {
                         fetchUsers();
                         fetchUserDetails(userDetails.user.id);
