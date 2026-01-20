@@ -42,6 +42,7 @@ export function AuthProvider({ children }) {
     const response = await axios.post(apiUrl('/api/auth/login'), { email, password });
     const { token: newToken, user: userData } = response.data;
     localStorage.setItem('token', newToken);
+    axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
     setToken(newToken);
     setUser(userData);
     return userData;
@@ -51,6 +52,7 @@ export function AuthProvider({ children }) {
     const response = await axios.post(apiUrl('/api/auth/register'), { name, email, password });
     const { token: newToken, user: userData } = response.data;
     localStorage.setItem('token', newToken);
+    axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
     setToken(newToken);
     setUser(userData);
     return userData;

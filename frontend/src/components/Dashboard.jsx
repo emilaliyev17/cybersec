@@ -117,13 +117,17 @@ export default function Dashboard() {
             <div className="flex items-center">
               <div className="flex items-center gap-4">
                 <motion.div
+                  layoutId="shared-lock-element"
+                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
                   whileHover={{ rotate: 180 }}
-                  transition={{ duration: 0.5 }}
                   className="w-12 h-12 bg-gradient-primary rounded-xl flex items-center justify-center shadow-lg shadow-nano-blue/20"
                 >
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <motion.svg
+                    layoutId="shared-lock-icon"
+                    className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                  >
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                  </svg>
+                  </motion.svg>
                 </motion.div>
                 <div>
                   <h1 className="text-xl font-bold text-white tracking-wide">Security Training</h1>
@@ -414,8 +418,8 @@ export default function Dashboard() {
                 <div className="flex items-start justify-between mb-6">
                   <div className="flex items-center gap-4">
                     <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-bold text-xl shadow-lg transition-transform group-hover:scale-110 ${module.is_completed
-                        ? 'bg-gradient-to-br from-banano-green to-green-600 text-white shadow-banano-green/30'
-                        : 'bg-dark-800 border border-white/10 text-gray-400 group-hover:border-nano-blue/50 group-hover:text-nano-blue'
+                      ? 'bg-gradient-to-br from-banano-green to-green-600 text-white shadow-banano-green/30'
+                      : 'bg-dark-800 border border-white/10 text-gray-400 group-hover:border-nano-blue/50 group-hover:text-nano-blue'
                       }`}>
                       {module.is_completed ? (
                         <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -474,8 +478,8 @@ export default function Dashboard() {
                   <button
                     onClick={() => setSelectedModuleId(module.id)}
                     className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${module.is_completed
-                        ? 'bg-white/5 text-gray-300 hover:bg-white/10 hover:text-white'
-                        : 'bg-nano-blue text-white shadow-lg shadow-nano-blue/25 hover:shadow-nano-blue/40 hover:-translate-y-0.5'
+                      ? 'bg-white/5 text-gray-300 hover:bg-white/10 hover:text-white'
+                      : 'bg-nano-blue text-white shadow-lg shadow-nano-blue/25 hover:shadow-nano-blue/40 hover:-translate-y-0.5'
                       }`}
                   >
                     {module.is_completed ? 'Review Again' : 'Start Module'}

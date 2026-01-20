@@ -1,10 +1,20 @@
+import { useState } from 'react';
 import { useAuth } from './context/AuthContext';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import AdminDashboard from './components/admin/AdminDashboard';
+import Intro from './components/Intro';
 
 export default function App() {
   const { user, isAuthenticated, loading } = useAuth();
+  const [showIntro, setShowIntro] = useState(true);
+
+  // During the intro, we are effectively "loading" from the user's perspective.
+  // Once intro is done, if we are still strictly loading data, we might show a spinner,
+  // but usually auth check is fast.
+  if (showIntro) {
+    return <Intro onComplete={() => setShowIntro(false)} />;
+  }
 
   if (loading) {
     return (

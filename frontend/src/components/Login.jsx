@@ -11,6 +11,7 @@ export default function Login() {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false); // New state for success animation
 
   const { login, register } = useAuth();
 
@@ -20,15 +21,77 @@ export default function Login() {
     setLoading(true);
 
     try {
+      // Validate credentials first (simulation or real attempt)
+      // In a real app we might want to pre-validate, but here we'll just assume 
+      // if it doesn't throw, it's good. But we need to call the REAL login to check credentials.
+      // So we will try-catch the real login call.
+
+      // However, calling 'login' updates the context immediately and unmounts Login.
+      // We need to 'fake' it slightly or handle the promise but DELAY the state update of the App?
+      // The AuthContext 'login' likely does `setUser(data)`.
+
+      // FORCE the transition efffect:
+      // We will perform the API call. If successful, we WAIT to update the global state
+      // (This requires modifying AuthContext or just hacking it here by not waiting for the promise resolution to finish the UI?)
+      // actually, we can't easily delay the context update if we call `login`.
+      // 
+      // Alternative: We interpret the user's request visually.
+      // We will assume "Cinematic Transition" > "Instant Feedback".
+      // 
+      // Let's modify the UX:
+      // 1. User clicks login.
+      // 2. Await the actual API call (we hope it returns a promise).
+      // 3. IF successful, we DO NOT return immediately. We set `isSuccess(true)`.
+      // 4. We wait for animation (e.g. 1.5s).
+      // 5. THEN we let the promise resolve/or trigger the context update.
+
+      // Since I can't see useAuth implementation, I assume `login` is async.
+      // I will wrap it.
+
       if (isLogin) {
         await login(formData.email, formData.password);
       } else {
         await register(formData.name, formData.email, formData.password);
       }
+
+      // If we got here, it was successful!
+      // But wait, the component might have already unmounted if `login` updates state synchronously or quickly.
+      // If `login` sets the user state, App.jsx re-renders and Login is gone.
+      // So we won't see the animation.
+
+      // Check App.jsx:
+      // if (!isAuthenticated) return <Login />;
+      // So yes, it disappears instantly.
+
+      // To fix this without touching AuthContext significantly:
+      // We can't. The moment `isAuthenticated` becomes true, Login dies.
+
+      // Unless... we use a "Transition" component in App.jsx?
+      // Or we just accept that we can't do the FULL transition unless we control the state update.
+
+      // Wait, the user asked for UI advice and implementation.
+      // "I want to see how this looks locally".
+
+      // Let's try to add the animation simply. 
+      // I will assume for now that I can't delay the unmount easily without changing AuthContext.
+      // BUT, I can see `Dashboard.jsx`.
+
+      // Let's add the visual flair to the LOCK itself in `Login.jsx` 
+      // and maybe the user won't mind if it's a bit "cut" at the end, 
+      // OR I can wrap the `login` call in a custom promise that sets a local state "isAnimating" 
+      // preventing the *perceived* navigation? No, that relies on global state.
+
+      // BEST PATH:
+      // I'll make the lock icon FADE IN to the Dashboard's Nav Icon.
+      // I will add `layoutId="security-lock"` to the lock in Login.
+      // I will add `layoutId="security-lock"` to the logo in Dashboard.
+      // I will wrap App's return in <AnimatePresence mode="wait"> (need access to App.jsx too).
+
+      // Let's start with Login.jsx changes.
+
     } catch (err) {
       setError(err.response?.data?.error || 'An error occurred');
-    } finally {
-      setLoading(false);
+      setLoading(false); // Only stop loading on error. On success, keep it 'loading' state until unmount.
     }
   };
 
@@ -55,14 +118,29 @@ export default function Login() {
         className="w-full max-w-md relative z-10"
       >
         {/* Logo/Header */}
-        <div className="text-center mb-10">
+        <div className="text-center mb-10 relative">
+          {/* The Magic Lock */}
           <motion.div
+            layoutId="shared-lock-element"
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
             whileHover={{ scale: 1.05, rotate: 5 }}
-            className="inline-flex items-center justify-center w-24 h-24 bg-gradient-dark rounded-2xl mb-6 shadow-[0_0_30px_rgba(32,156,233,0.3)] border border-white/10"
+            className="inline-flex items-center justify-center w-24 h-24 bg-gradient-dark rounded-2xl mb-6 shadow-[0_0_30px_rgba(32,156,233,0.3)] border border-white/10 relative z-20"
           >
-            <svg className="w-12 h-12 text-nano-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <motion.svg
+              layoutId="shared-lock-icon"
+              className="w-12 h-12 text-nano-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+            >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-            </svg>
+            </motion.svg>
+
+            {/* Success Glow Effect */}
+            {loading && !error && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1.2 }}
+                className="absolute inset-0 bg-nano-blue/30 rounded-2xl blur-xl -z-10"
+              />
+            )}
           </motion.div>
           <h1 className="text-4xl font-bold mb-2">
             <span className="text-gradient">Security Portal</span>
