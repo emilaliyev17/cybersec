@@ -476,6 +476,11 @@ function ProgressView({
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <p className="text-white text-sm">{checklist.checklist_name}</p>
+                      {checklist.target_user_name && (
+                        <p className="text-xs text-nano-purple">
+                          For: {checklist.target_user_name}
+                        </p>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-2">
@@ -546,6 +551,11 @@ function ProgressView({
                   <div className="mb-6">
                     <h3 className="text-xl font-bold text-white">{checklistDetails.checklist.checklist_name}</h3>
                     <p className="text-gray-400">{selectedChecklist.user_name}</p>
+                    {selectedChecklist.target_user_name && (
+                      <p className="text-sm text-nano-purple mt-1">
+                        Pre-onboarding for: {selectedChecklist.target_user_name}
+                      </p>
+                    )}
                     <div className="mt-2 flex items-center gap-2">
                       <div className="flex-1 bg-gray-800 rounded-full h-2">
                         <div

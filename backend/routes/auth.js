@@ -6,6 +6,63 @@ const { generateToken, authMiddleware } = require('../middleware/auth');
 
 const router = express.Router();
 
+// Helper function to create admin pre-onboarding checklists for a new employee
+async function createAdminPreonboardingChecklists(newUserId) {
+  try {
+    // Get the admin-preonboarding template
+    const templateResult = await pool.query(
+      "SELECT id FROM checklist_templates WHERE template_id = 'admin-preonboarding' AND is_active = TRUE"
+    );
+
+    if (templateResult.rows.length === 0) {
+      console.log('Admin pre-onboarding template not found, skipping checklist creation');
+      return;
+    }
+
+    const templateId = templateResult.rows[0].id;
+
+    // Get all admin users
+    const adminsResult = await pool.query(
+      "SELECT id FROM users WHERE role = 'admin'"
+    );
+
+    if (adminsResult.rows.length === 0) {
+      console.log('No admin users found, skipping pre-onboarding checklist creation');
+      return;
+    }
+
+    // Create checklist for each admin, targeting the new employee
+    for (const admin of adminsResult.rows) {
+      // Create checklist assignment with target_user_id
+      const checklistResult = await pool.query(`
+        INSERT INTO user_checklists (user_id, template_id, target_user_id, due_date)
+        VALUES ($1, $2, $3, CURRENT_DATE + INTERVAL '7 days')
+        ON CONFLICT DO NOTHING
+        RETURNING id
+      `, [admin.id, templateId, newUserId]);
+
+      if (checklistResult.rows.length > 0) {
+        const checklistId = checklistResult.rows[0].id;
+
+        // Initialize all items for this checklist
+        await pool.query(`
+          INSERT INTO user_checklist_items (user_checklist_id, template_item_id, is_completed)
+          SELECT $1, cti.id, FALSE
+          FROM checklist_sections cs
+          JOIN checklist_template_items cti ON cs.id = cti.section_id
+          WHERE cs.template_id = $2 AND cs.is_active = TRUE AND cti.is_active = TRUE
+          ON CONFLICT DO NOTHING
+        `, [checklistId, templateId]);
+
+        console.log(`Created admin pre-onboarding checklist for admin ${admin.id} -> new employee ${newUserId}`);
+      }
+    }
+  } catch (error) {
+    console.error('Error creating admin pre-onboarding checklists:', error);
+    // Don't throw - this shouldn't block user registration
+  }
+}
+
 // POST /api/auth/register
 router.post(
   '/register',
@@ -49,6 +106,9 @@ router.post(
          SELECT $1, id, FALSE, 0 FROM training_modules WHERE is_active = TRUE`,
         [newUser.id]
       );
+
+      // Create admin pre-onboarding checklists for all admins
+      await createAdminPreonboardingChecklists(newUser.id);
 
       const token = generateToken(newUser);
 

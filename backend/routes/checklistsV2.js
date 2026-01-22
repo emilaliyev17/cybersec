@@ -584,6 +584,9 @@ router.get('/admin/overview', adminMiddleware, async (req, res) => {
                 uc.due_date,
                 uc.completed_at,
                 assigner.name as assigned_by_name,
+                uc.target_user_id,
+                target_user.name as target_user_name,
+                target_user.email as target_user_email,
                 COUNT(cti.id) as total_items,
                 COUNT(CASE WHEN uci.is_completed THEN 1 END) as completed_items,
                 CASE
@@ -594,6 +597,7 @@ router.get('/admin/overview', adminMiddleware, async (req, res) => {
             JOIN users u ON uc.user_id = u.id
             JOIN checklist_templates ct ON uc.template_id = ct.id
             LEFT JOIN users assigner ON uc.assigned_by = assigner.id
+            LEFT JOIN users target_user ON uc.target_user_id = target_user.id
             LEFT JOIN checklist_sections cs ON ct.id = cs.template_id AND cs.is_active = TRUE
             LEFT JOIN checklist_template_items cti ON cs.id = cti.section_id AND cti.is_active = TRUE
             LEFT JOIN user_checklist_items uci ON uc.id = uci.user_checklist_id AND cti.id = uci.template_item_id
@@ -618,7 +622,8 @@ router.get('/admin/overview', adminMiddleware, async (req, res) => {
 
         query += `
             GROUP BY uc.id, u.id, u.name, u.email, u.role, ct.template_id, ct.name,
-                     uc.status, uc.assigned_at, uc.due_date, uc.completed_at, assigner.name
+                     uc.status, uc.assigned_at, uc.due_date, uc.completed_at, assigner.name,
+                     uc.target_user_id, target_user.name, target_user.email
             ORDER BY
                 CASE uc.status
                     WHEN 'in_progress' THEN 1
