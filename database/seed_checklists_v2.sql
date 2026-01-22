@@ -197,6 +197,13 @@ JOIN checklist_templates ct ON cs.template_id = ct.id
 WHERE ct.template_id = 'ft-onboarding' AND cs.section_order = 2
 ON CONFLICT DO NOTHING;
 
+INSERT INTO checklist_template_items (section_id, title, description, subsection, item_order, is_mandatory)
+SELECT cs.id, 'Received Handbook and read it', 'Employee handbook with company policies and procedures', 'Orientation', 13, TRUE
+FROM checklist_sections cs
+JOIN checklist_templates ct ON cs.template_id = ct.id
+WHERE ct.template_id = 'ft-onboarding' AND cs.section_order = 2
+ON CONFLICT DO NOTHING;
+
 -- Section 3: Week 1 Checklist
 INSERT INTO checklist_sections (template_id, title, description, section_order)
 SELECT id, 'Week 1 Checklist', 'First week tasks', 3
