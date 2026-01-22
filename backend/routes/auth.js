@@ -6,6 +6,50 @@ const { generateToken, authMiddleware } = require('../middleware/auth');
 
 const router = express.Router();
 
+// Helper function to create FT-Onboarding checklist for a new employee
+async function createEmployeeOnboardingChecklist(newUserId) {
+  try {
+    // Get the ft-onboarding template
+    const templateResult = await pool.query(
+      "SELECT id FROM checklist_templates WHERE template_id = 'ft-onboarding' AND is_active = TRUE"
+    );
+
+    if (templateResult.rows.length === 0) {
+      console.log('FT-Onboarding template not found, skipping checklist creation');
+      return;
+    }
+
+    const templateId = templateResult.rows[0].id;
+
+    // Create checklist assignment for the new employee
+    const checklistResult = await pool.query(`
+      INSERT INTO user_checklists (user_id, template_id, due_date)
+      VALUES ($1, $2, CURRENT_DATE + INTERVAL '30 days')
+      ON CONFLICT DO NOTHING
+      RETURNING id
+    `, [newUserId, templateId]);
+
+    if (checklistResult.rows.length > 0) {
+      const checklistId = checklistResult.rows[0].id;
+
+      // Initialize all items for this checklist
+      await pool.query(`
+        INSERT INTO user_checklist_items (user_checklist_id, template_item_id, is_completed)
+        SELECT $1, cti.id, FALSE
+        FROM checklist_sections cs
+        JOIN checklist_template_items cti ON cs.id = cti.section_id
+        WHERE cs.template_id = $2 AND cs.is_active = TRUE AND cti.is_active = TRUE
+        ON CONFLICT DO NOTHING
+      `, [checklistId, templateId]);
+
+      console.log(`Created FT-Onboarding checklist for new employee ${newUserId}`);
+    }
+  } catch (error) {
+    console.error('Error creating employee onboarding checklist:', error);
+    // Don't throw - this shouldn't block user registration
+  }
+}
+
 // Helper function to create admin pre-onboarding checklists for a new employee
 async function createAdminPreonboardingChecklists(newUserId) {
   try {
@@ -106,6 +150,9 @@ router.post(
          SELECT $1, id, FALSE, 0 FROM training_modules WHERE is_active = TRUE`,
         [newUser.id]
       );
+
+      // Create FT-Onboarding checklist for the new employee
+      await createEmployeeOnboardingChecklist(newUser.id);
 
       // Create admin pre-onboarding checklists for all admins
       await createAdminPreonboardingChecklists(newUser.id);
