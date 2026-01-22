@@ -8,6 +8,8 @@ import ModuleEditor from './ModuleEditor';
 import QuizResults from './QuizResults';
 import QuestionEditor from './QuestionEditor';
 import TrackManagement from './TrackManagement';
+import ChecklistManagement from './ChecklistManagement';
+import OnboardingProgressWidget from './OnboardingProgressWidget';
 
 export default function AdminDashboard() {
   const { user, logout } = useAuth();
@@ -34,6 +36,7 @@ export default function AdminDashboard() {
   const tabs = [
     { id: 'overview', label: 'Overview', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
     { id: 'users', label: 'Users', icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z' },
+    { id: 'checklists', label: 'Checklists', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4' },
     { id: 'tracks', label: 'Tracks', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01' },
     { id: 'modules', label: 'Modules', icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10' },
     { id: 'questions', label: 'Questions', icon: 'M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
@@ -136,6 +139,7 @@ export default function AdminDashboard() {
           <Overview stats={stats} loading={loading} onRefresh={fetchStats} />
         )}
         {activeTab === 'users' && <UserManagement />}
+        {activeTab === 'checklists' && <ChecklistManagement />}
         {activeTab === 'tracks' && <TrackManagement />}
         {activeTab === 'modules' && <ModuleEditor />}
         {activeTab === 'questions' && <QuestionEditor />}
@@ -289,6 +293,9 @@ function Overview({ stats, loading, onRefresh }) {
           </div>
         </div>
       </motion.div>
+
+      {/* Onboarding Progress Widget */}
+      <OnboardingProgressWidget />
     </>
   );
 }

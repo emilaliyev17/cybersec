@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import TrainingViewer from './TrainingViewer';
 import VideoTraining from './VideoTraining';
 import Quiz from './Quiz';
-import OnboardingChecklist from './OnboardingChecklist';
+import UserChecklists from './UserChecklists';
 import BioEditor from './BioEditor';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -307,9 +307,15 @@ export default function Dashboard() {
           )}
         </AnimatePresence>
 
-        {/* Track-specific content */}
-        {/* FULL track: Onboarding Checklist */}
-        {userTrack?.name === 'FULL' && <OnboardingChecklist />}
+        {/* Assigned Onboarding Checklists (v2 system) */}
+        <UserChecklists />
+
+        {/* NOTE: v1 OnboardingChecklist removed to prevent confusion with v2 system
+            Users should use the v2 UserChecklists component above.
+            Admin assigns checklists via Admin Dashboard > Checklists tab.
+            Legacy code kept for reference:
+            {userTrack?.name === 'FULL' && <OnboardingChecklist />}
+        */}
 
         {/* CONDENSED track: Bio Update Card */}
         {userTrack?.name === 'CONDENSED' && (

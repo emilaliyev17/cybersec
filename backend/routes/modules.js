@@ -134,6 +134,81 @@ router.post('/:id/progress', authMiddleware, async (req, res) => {
       [req.user.id, id, is_completed, is_completed ? new Date() : null]
     );
 
+    // Check if all modules are now completed and auto-complete training_completed items
+    if (is_completed) {
+      const progressCheck = await pool.query(`
+        SELECT
+          COUNT(tm.id) as total_modules,
+          COUNT(CASE WHEN up.is_completed THEN 1 END) as completed_modules
+        FROM training_modules tm
+        LEFT JOIN user_progress up ON tm.id = up.module_id AND up.user_id = $1
+        WHERE tm.is_active = TRUE
+      `, [req.user.id]);
+
+      const { total_modules, completed_modules } = progressCheck.rows[0];
+
+      if (parseInt(completed_modules) >= parseInt(total_modules)) {
+        // All modules completed - auto-complete 'training_completed' items
+        await pool.query(`
+          INSERT INTO user_checklist_items (user_checklist_id, template_item_id, is_completed, completed_at, completed_by)
+          SELECT uc.id, cti.id, TRUE, CURRENT_TIMESTAMP, $1
+          FROM user_checklists uc
+          JOIN checklist_templates ct ON uc.template_id = ct.id
+          JOIN checklist_sections cs ON ct.id = cs.template_id
+          JOIN checklist_template_items cti ON cs.id = cti.section_id
+          WHERE uc.user_id = $1
+            AND uc.status != 'completed'
+            AND cti.auto_complete_trigger = 'training_completed'
+            AND cti.is_active = TRUE
+            AND cs.is_active = TRUE
+          ON CONFLICT (user_checklist_id, template_item_id)
+          DO UPDATE SET
+            is_completed = TRUE,
+            completed_at = CURRENT_TIMESTAMP,
+            completed_by = $1,
+            updated_at = CURRENT_TIMESTAMP
+        `, [req.user.id]);
+
+        // Update checklist status
+        await pool.query(`
+          UPDATE user_checklists uc
+          SET status = CASE
+            WHEN (
+              SELECT COUNT(*) FROM checklist_template_items cti
+              JOIN checklist_sections cs ON cti.section_id = cs.id
+              WHERE cs.template_id = uc.template_id AND cti.is_active = TRUE AND cs.is_active = TRUE
+            ) = (
+              SELECT COUNT(*) FROM user_checklist_items uci
+              JOIN checklist_template_items cti ON uci.template_item_id = cti.id
+              JOIN checklist_sections cs ON cti.section_id = cs.id
+              WHERE uci.user_checklist_id = uc.id AND uci.is_completed = TRUE
+                AND cti.is_active = TRUE AND cs.is_active = TRUE
+            )
+            THEN 'completed'
+            WHEN uc.status = 'not_started'
+            THEN 'in_progress'
+            ELSE uc.status
+          END,
+          completed_at = CASE
+            WHEN (
+              SELECT COUNT(*) FROM checklist_template_items cti
+              JOIN checklist_sections cs ON cti.section_id = cs.id
+              WHERE cs.template_id = uc.template_id AND cti.is_active = TRUE AND cs.is_active = TRUE
+            ) = (
+              SELECT COUNT(*) FROM user_checklist_items uci
+              JOIN checklist_template_items cti ON uci.template_item_id = cti.id
+              JOIN checklist_sections cs ON cti.section_id = cs.id
+              WHERE uci.user_checklist_id = uc.id AND uci.is_completed = TRUE
+                AND cti.is_active = TRUE AND cs.is_active = TRUE
+            )
+            THEN CURRENT_TIMESTAMP
+            ELSE NULL
+          END
+          WHERE uc.user_id = $1 AND uc.status != 'completed'
+        `, [req.user.id]);
+      }
+    }
+
     res.json({
       message: 'Progress updated',
       progress: result.rows[0],

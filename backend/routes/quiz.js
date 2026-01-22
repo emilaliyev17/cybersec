@@ -139,6 +139,63 @@ router.post('/submit', authMiddleware, async (req, res) => {
         [req.user.id]
       );
 
+      // Auto-complete checklist items with trigger 'quiz_passed'
+      await client.query(`
+        INSERT INTO user_checklist_items (user_checklist_id, template_item_id, is_completed, completed_at, completed_by)
+        SELECT uc.id, cti.id, TRUE, CURRENT_TIMESTAMP, $1
+        FROM user_checklists uc
+        JOIN checklist_templates ct ON uc.template_id = ct.id
+        JOIN checklist_sections cs ON ct.id = cs.template_id
+        JOIN checklist_template_items cti ON cs.id = cti.section_id
+        WHERE uc.user_id = $1
+          AND uc.status != 'completed'
+          AND cti.auto_complete_trigger = 'quiz_passed'
+          AND cti.is_active = TRUE
+          AND cs.is_active = TRUE
+        ON CONFLICT (user_checklist_id, template_item_id)
+        DO UPDATE SET
+          is_completed = TRUE,
+          completed_at = CURRENT_TIMESTAMP,
+          completed_by = $1,
+          updated_at = CURRENT_TIMESTAMP
+      `, [req.user.id]);
+
+      // Update checklist status if all items are now completed
+      await client.query(`
+        UPDATE user_checklists uc
+        SET status = CASE
+          WHEN (
+            SELECT COUNT(*) FROM checklist_template_items cti
+            JOIN checklist_sections cs ON cti.section_id = cs.id
+            WHERE cs.template_id = uc.template_id AND cti.is_active = TRUE AND cs.is_active = TRUE
+          ) = (
+            SELECT COUNT(*) FROM user_checklist_items uci
+            JOIN checklist_template_items cti ON uci.template_item_id = cti.id
+            JOIN checklist_sections cs ON cti.section_id = cs.id
+            WHERE uci.user_checklist_id = uc.id AND uci.is_completed = TRUE
+              AND cti.is_active = TRUE AND cs.is_active = TRUE
+          )
+          THEN 'completed'
+          ELSE 'in_progress'
+        END,
+        completed_at = CASE
+          WHEN (
+            SELECT COUNT(*) FROM checklist_template_items cti
+            JOIN checklist_sections cs ON cti.section_id = cs.id
+            WHERE cs.template_id = uc.template_id AND cti.is_active = TRUE AND cs.is_active = TRUE
+          ) = (
+            SELECT COUNT(*) FROM user_checklist_items uci
+            JOIN checklist_template_items cti ON uci.template_item_id = cti.id
+            JOIN checklist_sections cs ON cti.section_id = cs.id
+            WHERE uci.user_checklist_id = uc.id AND uci.is_completed = TRUE
+              AND cti.is_active = TRUE AND cs.is_active = TRUE
+          )
+          THEN CURRENT_TIMESTAMP
+          ELSE NULL
+        END
+        WHERE uc.user_id = $1 AND uc.status != 'completed'
+      `, [req.user.id]);
+
       await client.query('COMMIT');
 
       res.json({

@@ -9,6 +9,7 @@ const quizRoutes = require('./routes/quiz');
 const adminRoutes = require('./routes/admin');
 const tracksRoutes = require('./routes/tracks');
 const checklistRoutes = require('./routes/checklist');
+const checklistsV2Routes = require('./routes/checklistsV2');
 const bioRoutes = require('./routes/bio');
 
 const app = express();
@@ -58,6 +59,7 @@ app.use('/api/quiz', quizRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/tracks', tracksRoutes);
 app.use('/api/checklist', checklistRoutes);
+app.use('/api/v2/checklists', checklistsV2Routes);
 app.use('/api/bio', bioRoutes);
 
 // Error handling middleware
