@@ -298,6 +298,46 @@ function TemplatesView({ templates, onRefresh }) {
   const [showAddItem, setShowAddItem] = useState(null);
   const [newItemValue, setNewItemValue] = useState({ title: '', subsection: '', is_mandatory: false });
 
+  // Template editing state
+  const [editingTemplate, setEditingTemplate] = useState(null);
+  const [editTemplateValue, setEditTemplateValue] = useState({ name: '', audience: '', trigger_event: '' });
+
+  // Template handlers
+  const handleTemplateEditStart = (template, e) => {
+    e.stopPropagation();
+    setEditingTemplate(template.id);
+    setEditTemplateValue({
+      name: template.name,
+      audience: template.audience || '',
+      trigger_event: template.trigger_event || ''
+    });
+  };
+
+  const handleTemplateEditSave = async (templateId) => {
+    if (!editTemplateValue.name.trim()) return;
+
+    setSaving(true);
+    try {
+      await axios.put(apiUrl(`/api/v2/checklists/admin/templates/${templateId}`), {
+        name: editTemplateValue.name.trim(),
+        audience: editTemplateValue.audience.trim() || null,
+        trigger_event: editTemplateValue.trigger_event.trim() || null
+      });
+      setEditingTemplate(null);
+      if (onRefresh) onRefresh();
+    } catch (error) {
+      console.error('Failed to update template:', error);
+      alert('Failed to update template');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleTemplateEditCancel = () => {
+    setEditingTemplate(null);
+    setEditTemplateValue({ name: '', audience: '', trigger_event: '' });
+  };
+
   // Section handlers
   const handleEditStart = (section, e) => {
     e.stopPropagation();
@@ -445,41 +485,113 @@ function TemplatesView({ templates, onRefresh }) {
           animate={{ opacity: 1, y: 0 }}
           className="glass-card overflow-hidden"
         >
-          <button
-            onClick={() => setExpandedTemplate(expandedTemplate === template.id ? null : template.id)}
-            className="w-full px-6 py-4 flex items-center justify-between hover:bg-white/5 transition-colors"
-          >
-            <div className="flex items-center gap-4">
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                template.template_id === 'ft-onboarding' ? 'bg-nano-blue/20' :
-                template.template_id === 'contractor-onboarding' ? 'bg-nano-purple/20' :
-                template.template_id === 'periodic-compliance' ? 'bg-banano-yellow/20' :
-                'bg-banano-green/20'
-              }`}>
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+          {editingTemplate === template.id ? (
+            // Edit Template Form
+            <div className="px-6 py-4 space-y-3">
+              <div className="flex items-center gap-4">
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                  template.template_id === 'ft-onboarding' ? 'bg-nano-blue/20' :
+                  template.template_id === 'contractor-onboarding' ? 'bg-nano-purple/20' :
+                  template.template_id === 'periodic-compliance' ? 'bg-banano-yellow/20' :
+                  'bg-banano-green/20'
+                }`}>
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                  </svg>
+                </div>
+                <div className="flex-1 space-y-2">
+                  <input
+                    type="text"
+                    value={editTemplateValue.name}
+                    onChange={(e) => setEditTemplateValue({ ...editTemplateValue, name: e.target.value })}
+                    placeholder="Template name"
+                    className="w-full px-3 py-2 bg-white/10 border border-nano-purple rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-nano-purple"
+                    autoFocus
+                    disabled={saving}
+                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={editTemplateValue.audience}
+                      onChange={(e) => setEditTemplateValue({ ...editTemplateValue, audience: e.target.value })}
+                      placeholder="Audience (e.g., employee, contractor)"
+                      className="flex-1 px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-nano-purple text-sm"
+                      disabled={saving}
+                    />
+                    <input
+                      type="text"
+                      value={editTemplateValue.trigger_event}
+                      onChange={(e) => setEditTemplateValue({ ...editTemplateValue, trigger_event: e.target.value })}
+                      placeholder="Trigger (e.g., Assigned on hire)"
+                      className="flex-1 px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-nano-purple text-sm"
+                      disabled={saving}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => handleTemplateEditSave(template.id)}
+                  disabled={saving || !editTemplateValue.name.trim()}
+                  className="px-4 py-2 bg-banano-green text-white rounded-lg font-medium hover:bg-banano-green/80 transition-colors disabled:opacity-50"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={handleTemplateEditCancel}
+                  className="px-4 py-2 text-gray-400 hover:bg-white/10 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            // Template Display
+            <div
+              onClick={() => setExpandedTemplate(expandedTemplate === template.id ? null : template.id)}
+              className="w-full px-6 py-4 flex items-center justify-between hover:bg-white/5 transition-colors cursor-pointer group"
+            >
+              <div className="flex items-center gap-4">
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                  template.template_id === 'ft-onboarding' ? 'bg-nano-blue/20' :
+                  template.template_id === 'contractor-onboarding' ? 'bg-nano-purple/20' :
+                  template.template_id === 'periodic-compliance' ? 'bg-banano-yellow/20' :
+                  'bg-banano-green/20'
+                }`}>
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                  </svg>
+                </div>
+                <div className="text-left">
+                  <p className="text-white font-bold">{template.name}</p>
+                  <p className="text-sm text-gray-400">{template.audience} | {template.trigger_event}</p>
+                </div>
+                <button
+                  onClick={(e) => handleTemplateEditStart(template, e)}
+                  className="p-1.5 text-gray-400 hover:text-nano-purple hover:bg-nano-purple/20 rounded-lg transition-colors opacity-0 group-hover:opacity-100 ml-2"
+                  title="Edit template"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
+                </button>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="text-right">
+                  <p className="text-white font-bold">{template.sections?.length || 0}</p>
+                  <p className="text-xs text-gray-500">sections</p>
+                </div>
+                <svg
+                  className={`w-5 h-5 text-gray-400 transition-transform ${expandedTemplate === template.id ? 'rotate-180' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </div>
-              <div className="text-left">
-                <p className="text-white font-bold">{template.name}</p>
-                <p className="text-sm text-gray-400">{template.audience} | {template.trigger_event}</p>
-              </div>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="text-right">
-                <p className="text-white font-bold">{template.sections?.length || 0}</p>
-                <p className="text-xs text-gray-500">sections</p>
-              </div>
-              <svg
-                className={`w-5 h-5 text-gray-400 transition-transform ${expandedTemplate === template.id ? 'rotate-180' : ''}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </div>
-          </button>
+          )}
 
           <AnimatePresence>
             {expandedTemplate === template.id && (

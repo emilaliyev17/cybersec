@@ -740,6 +740,41 @@ router.put('/admin/items/:checklistId/:itemId', adminMiddleware, async (req, res
 });
 
 // ============================================
+// TEMPLATE MANAGEMENT ENDPOINTS
+// ============================================
+
+// PUT /api/v2/checklists/admin/templates/:templateId - Update template name
+router.put('/admin/templates/:templateId', adminMiddleware, async (req, res) => {
+    const { templateId } = req.params;
+    const { name, description, audience, trigger_event } = req.body;
+
+    if (!name || name.trim() === '') {
+        return res.status(400).json({ error: 'Name is required' });
+    }
+
+    try {
+        const result = await pool.query(`
+            UPDATE checklist_templates
+            SET name = $1, description = $2, audience = $3, trigger_event = $4
+            WHERE id = $5
+            RETURNING *
+        `, [name.trim(), description || null, audience || null, trigger_event || null, templateId]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Template not found' });
+        }
+
+        res.json({
+            message: 'Template updated',
+            template: result.rows[0]
+        });
+    } catch (error) {
+        console.error('Update template error:', error);
+        res.status(500).json({ error: 'Server error updating template' });
+    }
+});
+
+// ============================================
 // SECTION MANAGEMENT ENDPOINTS
 // ============================================
 
