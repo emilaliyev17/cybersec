@@ -11,7 +11,29 @@ echo "🛡️  Starting Security Onboarding System..."
 echo "=========================================="
 
 # ------------------------------------------------------------------------------
-# 0. Check Cloud SQL Proxy
+# 0. Check gcloud authentication
+# ------------------------------------------------------------------------------
+echo "🔑 Checking gcloud authentication..."
+
+# Test if auth is valid
+if ! gcloud auth application-default print-access-token &>/dev/null; then
+    echo "⚠️  gcloud auth expired or not configured."
+    echo ""
+    echo "   Running: gcloud auth application-default login"
+    echo ""
+    gcloud auth application-default login
+
+    # Check again after login
+    if ! gcloud auth application-default print-access-token &>/dev/null; then
+        echo "❌ Authentication failed. Please try manually:"
+        echo "   gcloud auth application-default login"
+        exit 1
+    fi
+fi
+echo "✅ gcloud authenticated"
+
+# ------------------------------------------------------------------------------
+# 1. Check Cloud SQL Proxy
 # ------------------------------------------------------------------------------
 PROXY_PATH="$HOME/cloud-sql-proxy"
 if [ ! -f "$PROXY_PATH" ]; then
@@ -22,7 +44,7 @@ if [ ! -f "$PROXY_PATH" ]; then
 fi
 
 # ------------------------------------------------------------------------------
-# 1. Kill any existing processes on our ports
+# 2. Kill any existing processes on our ports
 # ------------------------------------------------------------------------------
 echo "🧹 Cleaning up old processes..."
 
@@ -46,7 +68,7 @@ sleep 2
 echo "✅ Ports cleared (local PostgreSQL stopped)"
 
 # ------------------------------------------------------------------------------
-# 2. Start Cloud SQL Proxy
+# 3. Start Cloud SQL Proxy
 # ------------------------------------------------------------------------------
 echo "🔌 Connecting to Cloud SQL..."
 $PROXY_PATH contract-management-473819:us-central1:strategybrix-postgres --port=5432 > /dev/null 2>&1 &
@@ -62,7 +84,7 @@ fi
 echo "✅ Connected to Cloud SQL (strategybrix-postgres)"
 
 # ------------------------------------------------------------------------------
-# 3. Backend Setup & Start
+# 4. Backend Setup & Start
 # ------------------------------------------------------------------------------
 echo "------------------------------------------"
 echo "🔙 Setting up Backend..."
@@ -103,7 +125,7 @@ fi
 cd "$PROJECT_ROOT"
 
 # ------------------------------------------------------------------------------
-# 4. Frontend Setup & Start
+# 5. Frontend Setup & Start
 # ------------------------------------------------------------------------------
 echo "------------------------------------------"
 echo "🖥️  Setting up Frontend..."
@@ -115,7 +137,7 @@ if [ ! -d "node_modules" ]; then
 fi
 
 # ------------------------------------------------------------------------------
-# 5. Running & Cleanup
+# 6. Running & Cleanup
 # ------------------------------------------------------------------------------
 echo "------------------------------------------"
 echo "✅ READY! (Connected to Cloud SQL)"

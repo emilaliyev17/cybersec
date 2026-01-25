@@ -739,6 +739,186 @@ router.put('/admin/items/:checklistId/:itemId', adminMiddleware, async (req, res
     }
 });
 
+// ============================================
+// SECTION MANAGEMENT ENDPOINTS
+// ============================================
+
+// PUT /api/v2/checklists/admin/sections/:sectionId - Update section title
+router.put('/admin/sections/:sectionId', adminMiddleware, async (req, res) => {
+    const { sectionId } = req.params;
+    const { title, description } = req.body;
+
+    if (!title || title.trim() === '') {
+        return res.status(400).json({ error: 'Title is required' });
+    }
+
+    try {
+        const result = await pool.query(`
+            UPDATE checklist_sections
+            SET title = $1, description = $2
+            WHERE id = $3
+            RETURNING *
+        `, [title.trim(), description || null, sectionId]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Section not found' });
+        }
+
+        res.json({
+            message: 'Section updated',
+            section: result.rows[0]
+        });
+    } catch (error) {
+        console.error('Update section error:', error);
+        res.status(500).json({ error: 'Server error updating section' });
+    }
+});
+
+// POST /api/v2/checklists/admin/sections - Create new section
+router.post('/admin/sections', adminMiddleware, async (req, res) => {
+    const { template_id, title, description } = req.body;
+
+    if (!template_id || !title || title.trim() === '') {
+        return res.status(400).json({ error: 'template_id and title are required' });
+    }
+
+    try {
+        // Get the max section_order for this template
+        const orderResult = await pool.query(`
+            SELECT COALESCE(MAX(section_order), 0) + 1 as next_order
+            FROM checklist_sections
+            WHERE template_id = $1
+        `, [template_id]);
+
+        const nextOrder = orderResult.rows[0].next_order;
+
+        const result = await pool.query(`
+            INSERT INTO checklist_sections (template_id, title, description, section_order)
+            VALUES ($1, $2, $3, $4)
+            RETURNING *
+        `, [template_id, title.trim(), description || null, nextOrder]);
+
+        res.json({
+            message: 'Section created',
+            section: result.rows[0]
+        });
+    } catch (error) {
+        console.error('Create section error:', error);
+        res.status(500).json({ error: 'Server error creating section' });
+    }
+});
+
+// DELETE /api/v2/checklists/admin/sections/:sectionId - Delete section
+router.delete('/admin/sections/:sectionId', adminMiddleware, async (req, res) => {
+    const { sectionId } = req.params;
+
+    try {
+        const result = await pool.query(
+            'DELETE FROM checklist_sections WHERE id = $1 RETURNING id',
+            [sectionId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Section not found' });
+        }
+
+        res.json({ message: 'Section deleted' });
+    } catch (error) {
+        console.error('Delete section error:', error);
+        res.status(500).json({ error: 'Server error deleting section' });
+    }
+});
+
+// ============================================
+// TEMPLATE ITEM MANAGEMENT ENDPOINTS
+// ============================================
+
+// PUT /api/v2/checklists/admin/template-items/:itemId - Update template item
+router.put('/admin/template-items/:itemId', adminMiddleware, async (req, res) => {
+    const { itemId } = req.params;
+    const { title, description, subsection, is_mandatory } = req.body;
+
+    if (!title || title.trim() === '') {
+        return res.status(400).json({ error: 'Title is required' });
+    }
+
+    try {
+        const result = await pool.query(`
+            UPDATE checklist_template_items
+            SET title = $1, description = $2, subsection = $3, is_mandatory = $4
+            WHERE id = $5
+            RETURNING *
+        `, [title.trim(), description || null, subsection || null, is_mandatory || false, itemId]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Item not found' });
+        }
+
+        res.json({
+            message: 'Item updated',
+            item: result.rows[0]
+        });
+    } catch (error) {
+        console.error('Update template item error:', error);
+        res.status(500).json({ error: 'Server error updating item' });
+    }
+});
+
+// POST /api/v2/checklists/admin/template-items - Create new template item
+router.post('/admin/template-items', adminMiddleware, async (req, res) => {
+    const { section_id, title, description, subsection, is_mandatory } = req.body;
+
+    if (!section_id || !title || title.trim() === '') {
+        return res.status(400).json({ error: 'section_id and title are required' });
+    }
+
+    try {
+        // Get the max item_order for this section
+        const orderResult = await pool.query(`
+            SELECT COALESCE(MAX(item_order), 0) + 1 as next_order
+            FROM checklist_template_items
+            WHERE section_id = $1
+        `, [section_id]);
+
+        const nextOrder = orderResult.rows[0].next_order;
+
+        const result = await pool.query(`
+            INSERT INTO checklist_template_items (section_id, title, description, subsection, item_order, is_mandatory)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            RETURNING *
+        `, [section_id, title.trim(), description || null, subsection || null, nextOrder, is_mandatory || false]);
+
+        res.json({
+            message: 'Item created',
+            item: result.rows[0]
+        });
+    } catch (error) {
+        console.error('Create template item error:', error);
+        res.status(500).json({ error: 'Server error creating item' });
+    }
+});
+
+// DELETE /api/v2/checklists/admin/template-items/:itemId - Delete template item
+router.delete('/admin/template-items/:itemId', adminMiddleware, async (req, res) => {
+    const { itemId } = req.params;
+
+    try {
+        const result = await pool.query(
+            'DELETE FROM checklist_template_items WHERE id = $1 RETURNING id',
+            [itemId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Item not found' });
+        }
+
+        res.json({ message: 'Item deleted' });
+    } catch (error) {
+        console.error('Delete template item error:', error);
+        res.status(500).json({ error: 'Server error deleting item' });
+    }
+});
+
 // DELETE /api/checklists/admin/:checklistId - Remove checklist assignment
 router.delete('/admin/:checklistId', adminMiddleware, async (req, res) => {
     const { checklistId } = req.params;

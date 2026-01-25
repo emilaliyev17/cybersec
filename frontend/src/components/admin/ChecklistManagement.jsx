@@ -196,7 +196,7 @@ export default function ChecklistManagement() {
         <OverviewView stats={stats} templates={templates} />
       )}
       {activeView === 'templates' && (
-        <TemplatesView templates={templates} />
+        <TemplatesView templates={templates} onRefresh={fetchData} />
       )}
       {activeView === 'progress' && (
         <ProgressView
@@ -284,8 +284,157 @@ function OverviewView({ stats, templates }) {
 }
 
 // Templates View
-function TemplatesView({ templates }) {
+function TemplatesView({ templates, onRefresh }) {
   const [expandedTemplate, setExpandedTemplate] = useState(null);
+  const [editingSection, setEditingSection] = useState(null);
+  const [editValue, setEditValue] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [showAddSection, setShowAddSection] = useState(null);
+  const [newSectionTitle, setNewSectionTitle] = useState('');
+
+  // Item editing state
+  const [editingItem, setEditingItem] = useState(null);
+  const [editItemValue, setEditItemValue] = useState({ title: '', subsection: '', is_mandatory: false });
+  const [showAddItem, setShowAddItem] = useState(null);
+  const [newItemValue, setNewItemValue] = useState({ title: '', subsection: '', is_mandatory: false });
+
+  // Section handlers
+  const handleEditStart = (section, e) => {
+    e.stopPropagation();
+    setEditingSection(section.id);
+    setEditValue(section.title);
+  };
+
+  const handleEditSave = async (sectionId) => {
+    if (!editValue.trim()) return;
+
+    setSaving(true);
+    try {
+      await axios.put(apiUrl(`/api/v2/checklists/admin/sections/${sectionId}`), {
+        title: editValue.trim()
+      });
+      setEditingSection(null);
+      if (onRefresh) onRefresh();
+    } catch (error) {
+      console.error('Failed to update section:', error);
+      alert('Failed to update section');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleEditCancel = () => {
+    setEditingSection(null);
+    setEditValue('');
+  };
+
+  const handleAddSection = async (templateId) => {
+    if (!newSectionTitle.trim()) return;
+
+    setSaving(true);
+    try {
+      await axios.post(apiUrl('/api/v2/checklists/admin/sections'), {
+        template_id: templateId,
+        title: newSectionTitle.trim()
+      });
+      setShowAddSection(null);
+      setNewSectionTitle('');
+      if (onRefresh) onRefresh();
+    } catch (error) {
+      console.error('Failed to create section:', error);
+      alert('Failed to create section');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteSection = async (sectionId, e) => {
+    e.stopPropagation();
+    if (!confirm('Are you sure you want to delete this section? All items in it will be deleted too.')) {
+      return;
+    }
+
+    try {
+      await axios.delete(apiUrl(`/api/v2/checklists/admin/sections/${sectionId}`));
+      if (onRefresh) onRefresh();
+    } catch (error) {
+      console.error('Failed to delete section:', error);
+      alert('Failed to delete section');
+    }
+  };
+
+  // Item handlers
+  const handleItemEditStart = (item, e) => {
+    e.stopPropagation();
+    setEditingItem(item.id);
+    setEditItemValue({
+      title: item.title,
+      subsection: item.subsection || '',
+      is_mandatory: item.is_mandatory || false
+    });
+  };
+
+  const handleItemEditSave = async (itemId) => {
+    if (!editItemValue.title.trim()) return;
+
+    setSaving(true);
+    try {
+      await axios.put(apiUrl(`/api/v2/checklists/admin/template-items/${itemId}`), {
+        title: editItemValue.title.trim(),
+        subsection: editItemValue.subsection.trim() || null,
+        is_mandatory: editItemValue.is_mandatory
+      });
+      setEditingItem(null);
+      if (onRefresh) onRefresh();
+    } catch (error) {
+      console.error('Failed to update item:', error);
+      alert('Failed to update item');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleItemEditCancel = () => {
+    setEditingItem(null);
+    setEditItemValue({ title: '', subsection: '', is_mandatory: false });
+  };
+
+  const handleAddItem = async (sectionId) => {
+    if (!newItemValue.title.trim()) return;
+
+    setSaving(true);
+    try {
+      await axios.post(apiUrl('/api/v2/checklists/admin/template-items'), {
+        section_id: sectionId,
+        title: newItemValue.title.trim(),
+        subsection: newItemValue.subsection.trim() || null,
+        is_mandatory: newItemValue.is_mandatory
+      });
+      setShowAddItem(null);
+      setNewItemValue({ title: '', subsection: '', is_mandatory: false });
+      if (onRefresh) onRefresh();
+    } catch (error) {
+      console.error('Failed to create item:', error);
+      alert('Failed to create item');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteItem = async (itemId, e) => {
+    e.stopPropagation();
+    if (!confirm('Are you sure you want to delete this task?')) {
+      return;
+    }
+
+    try {
+      await axios.delete(apiUrl(`/api/v2/checklists/admin/template-items/${itemId}`));
+      if (onRefresh) onRefresh();
+    } catch (error) {
+      console.error('Failed to delete item:', error);
+      alert('Failed to delete item');
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -343,34 +492,284 @@ function TemplatesView({ templates }) {
                 <div className="p-6 space-y-4">
                   {template.sections?.map((section) => (
                     <div key={section.id} className="bg-white/5 rounded-xl p-4">
-                      <h4 className="text-white font-medium mb-3">{section.title}</h4>
+                      {/* Section Header with Edit */}
+                      <div className="flex items-center justify-between mb-3">
+                        {editingSection === section.id ? (
+                          <div className="flex items-center gap-2 flex-1">
+                            <input
+                              type="text"
+                              value={editValue}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleEditSave(section.id);
+                                if (e.key === 'Escape') handleEditCancel();
+                              }}
+                              className="flex-1 px-3 py-1 bg-white/10 border border-nano-purple rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-nano-purple"
+                              autoFocus
+                              disabled={saving}
+                            />
+                            <button
+                              onClick={() => handleEditSave(section.id)}
+                              disabled={saving}
+                              className="p-1 text-banano-green hover:bg-banano-green/20 rounded transition-colors"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={handleEditCancel}
+                              disabled={saving}
+                              className="p-1 text-gray-400 hover:bg-white/10 rounded transition-colors"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <h4 className="text-white font-medium">{section.title}</h4>
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={(e) => handleEditStart(section, e)}
+                                className="p-1 text-gray-400 hover:text-nano-purple hover:bg-nano-purple/20 rounded transition-colors"
+                                title="Edit section title"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={(e) => handleDeleteSection(section.id, e)}
+                                className="p-1 text-gray-400 hover:text-red-400 hover:bg-red-500/20 rounded transition-colors"
+                                title="Delete section"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Items */}
                       <div className="space-y-2">
                         {section.items?.map((item) => (
-                          <div
-                            key={item.id}
-                            className="flex items-start gap-3 text-sm"
-                          >
-                            <div className={`w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center ${
-                              item.is_mandatory ? 'bg-red-500/20' : 'bg-gray-700'
-                            }`}>
-                              {item.is_mandatory && (
-                                <span className="text-red-400 text-xs">!</span>
-                              )}
-                            </div>
-                            <div>
-                              <p className="text-gray-300">{item.title}</p>
-                              {item.subsection && (
-                                <p className="text-xs text-gray-500">{item.subsection}</p>
-                              )}
-                              {item.auto_complete_trigger && (
-                                <span className="text-xs text-nano-purple">Auto: {item.auto_complete_trigger}</span>
-                              )}
-                            </div>
+                          <div key={item.id}>
+                            {editingItem === item.id ? (
+                              // Edit Item Form
+                              <div className="p-3 bg-white/5 rounded-lg border border-nano-purple/50 space-y-2">
+                                <input
+                                  type="text"
+                                  value={editItemValue.title}
+                                  onChange={(e) => setEditItemValue({ ...editItemValue, title: e.target.value })}
+                                  placeholder="Task title"
+                                  className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-nano-purple text-sm"
+                                  autoFocus
+                                  disabled={saving}
+                                />
+                                <input
+                                  type="text"
+                                  value={editItemValue.subsection}
+                                  onChange={(e) => setEditItemValue({ ...editItemValue, subsection: e.target.value })}
+                                  placeholder="Subsection (optional)"
+                                  className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-nano-purple text-sm"
+                                  disabled={saving}
+                                />
+                                <div className="flex items-center justify-between">
+                                  <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={editItemValue.is_mandatory}
+                                      onChange={(e) => setEditItemValue({ ...editItemValue, is_mandatory: e.target.checked })}
+                                      className="rounded border-white/20 bg-white/5 text-red-500 focus:ring-red-500"
+                                      disabled={saving}
+                                    />
+                                    Mandatory
+                                  </label>
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      onClick={() => handleItemEditSave(item.id)}
+                                      disabled={saving || !editItemValue.title.trim()}
+                                      className="px-3 py-1 bg-banano-green text-white rounded text-sm font-medium hover:bg-banano-green/80 transition-colors disabled:opacity-50"
+                                    >
+                                      Save
+                                    </button>
+                                    <button
+                                      onClick={handleItemEditCancel}
+                                      className="px-3 py-1 text-gray-400 hover:bg-white/10 rounded text-sm transition-colors"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              // Item Display
+                              <div className="flex items-start gap-3 text-sm group hover:bg-white/5 p-2 -mx-2 rounded-lg transition-colors">
+                                <div className={`w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center ${
+                                  item.is_mandatory ? 'bg-red-500/20' : 'bg-gray-700'
+                                }`}>
+                                  {item.is_mandatory && (
+                                    <span className="text-red-400 text-xs">!</span>
+                                  )}
+                                </div>
+                                <div className="flex-1">
+                                  <p className="text-gray-300">{item.title}</p>
+                                  {item.subsection && (
+                                    <p className="text-xs text-gray-500">{item.subsection}</p>
+                                  )}
+                                  {item.auto_complete_trigger && (
+                                    <span className="text-xs text-nano-purple">Auto: {item.auto_complete_trigger}</span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <button
+                                    onClick={(e) => handleItemEditStart(item, e)}
+                                    className="p-1 text-gray-400 hover:text-nano-purple hover:bg-nano-purple/20 rounded transition-colors"
+                                    title="Edit task"
+                                  >
+                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                    </svg>
+                                  </button>
+                                  <button
+                                    onClick={(e) => handleDeleteItem(item.id, e)}
+                                    className="p-1 text-gray-400 hover:text-red-400 hover:bg-red-500/20 rounded transition-colors"
+                                    title="Delete task"
+                                  >
+                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         ))}
+
+                        {/* Add Item Button/Form */}
+                        {showAddItem === section.id ? (
+                          <div className="p-3 bg-white/5 rounded-lg border border-dashed border-nano-purple/50 space-y-2 mt-3">
+                            <input
+                              type="text"
+                              value={newItemValue.title}
+                              onChange={(e) => setNewItemValue({ ...newItemValue, title: e.target.value })}
+                              placeholder="Task title"
+                              className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-nano-purple text-sm"
+                              autoFocus
+                              disabled={saving}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && newItemValue.title.trim()) handleAddItem(section.id);
+                                if (e.key === 'Escape') {
+                                  setShowAddItem(null);
+                                  setNewItemValue({ title: '', subsection: '', is_mandatory: false });
+                                }
+                              }}
+                            />
+                            <input
+                              type="text"
+                              value={newItemValue.subsection}
+                              onChange={(e) => setNewItemValue({ ...newItemValue, subsection: e.target.value })}
+                              placeholder="Subsection (optional)"
+                              className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-nano-purple text-sm"
+                              disabled={saving}
+                            />
+                            <div className="flex items-center justify-between">
+                              <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={newItemValue.is_mandatory}
+                                  onChange={(e) => setNewItemValue({ ...newItemValue, is_mandatory: e.target.checked })}
+                                  className="rounded border-white/20 bg-white/5 text-red-500 focus:ring-red-500"
+                                  disabled={saving}
+                                />
+                                Mandatory
+                              </label>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => handleAddItem(section.id)}
+                                  disabled={saving || !newItemValue.title.trim()}
+                                  className="px-3 py-1 bg-nano-purple text-white rounded text-sm font-medium hover:bg-nano-purple/80 transition-colors disabled:opacity-50"
+                                >
+                                  Add
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setShowAddItem(null);
+                                    setNewItemValue({ title: '', subsection: '', is_mandatory: false });
+                                  }}
+                                  className="px-3 py-1 text-gray-400 hover:bg-white/10 rounded text-sm transition-colors"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setShowAddItem(section.id)}
+                            className="w-full mt-2 py-2 border border-dashed border-white/20 rounded-lg text-gray-500 hover:border-nano-purple hover:text-nano-purple transition-colors flex items-center justify-center gap-2 text-sm"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                            </svg>
+                            Add Task
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}
+
+                  {/* Add Section Button/Form */}
+                  {showAddSection === template.id ? (
+                    <div className="flex items-center gap-2 p-4 bg-white/5 rounded-xl border-2 border-dashed border-nano-purple/50">
+                      <input
+                        type="text"
+                        value={newSectionTitle}
+                        onChange={(e) => setNewSectionTitle(e.target.value)}
+                        placeholder="New section title..."
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleAddSection(template.id);
+                          if (e.key === 'Escape') {
+                            setShowAddSection(null);
+                            setNewSectionTitle('');
+                          }
+                        }}
+                        className="flex-1 px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-nano-purple"
+                        autoFocus
+                        disabled={saving}
+                      />
+                      <button
+                        onClick={() => handleAddSection(template.id)}
+                        disabled={saving || !newSectionTitle.trim()}
+                        className="px-4 py-2 bg-nano-purple text-white rounded-lg font-medium hover:bg-nano-purple/80 transition-colors disabled:opacity-50"
+                      >
+                        Add
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowAddSection(null);
+                          setNewSectionTitle('');
+                        }}
+                        className="px-4 py-2 text-gray-400 hover:bg-white/10 rounded-lg transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setShowAddSection(template.id)}
+                      className="w-full p-4 border-2 border-dashed border-white/20 rounded-xl text-gray-400 hover:border-nano-purple hover:text-nano-purple transition-colors flex items-center justify-center gap-2"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                      </svg>
+                      Add Section
+                    </button>
+                  )}
                 </div>
               </motion.div>
             )}
