@@ -774,6 +774,46 @@ router.put('/admin/templates/:templateId', adminMiddleware, async (req, res) => 
     }
 });
 
+// POST /api/v2/checklists/admin/templates - Create new template
+router.post('/admin/templates', adminMiddleware, async (req, res) => {
+    const { name, description, audience, trigger_event } = req.body;
+
+    if (!name || name.trim() === '') {
+        return res.status(400).json({ error: 'Name is required' });
+    }
+
+    try {
+        // Generate a unique template_id from the name
+        const templateId = name.trim().toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-|-$/g, '');
+
+        // Check if template_id already exists
+        const existingCheck = await pool.query(
+            'SELECT id FROM checklist_templates WHERE template_id = $1',
+            [templateId]
+        );
+
+        if (existingCheck.rows.length > 0) {
+            return res.status(400).json({ error: 'A template with this name already exists' });
+        }
+
+        const result = await pool.query(`
+            INSERT INTO checklist_templates (template_id, name, description, audience, trigger_event, is_active)
+            VALUES ($1, $2, $3, $4, $5, TRUE)
+            RETURNING *
+        `, [templateId, name.trim(), description || null, audience || null, trigger_event || null]);
+
+        res.json({
+            message: 'Template created',
+            template: result.rows[0]
+        });
+    } catch (error) {
+        console.error('Create template error:', error);
+        res.status(500).json({ error: 'Server error creating template' });
+    }
+});
+
 // ============================================
 // SECTION MANAGEMENT ENDPOINTS
 // ============================================

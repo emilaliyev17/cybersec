@@ -302,6 +302,10 @@ function TemplatesView({ templates, onRefresh }) {
   const [editingTemplate, setEditingTemplate] = useState(null);
   const [editTemplateValue, setEditTemplateValue] = useState({ name: '', audience: '', trigger_event: '' });
 
+  // New template state
+  const [showAddTemplate, setShowAddTemplate] = useState(false);
+  const [newTemplateValue, setNewTemplateValue] = useState({ name: '', audience: '', trigger_event: '' });
+
   // Template handlers
   const handleTemplateEditStart = (template, e) => {
     e.stopPropagation();
@@ -336,6 +340,28 @@ function TemplatesView({ templates, onRefresh }) {
   const handleTemplateEditCancel = () => {
     setEditingTemplate(null);
     setEditTemplateValue({ name: '', audience: '', trigger_event: '' });
+  };
+
+  // Create new template
+  const handleAddTemplate = async () => {
+    if (!newTemplateValue.name.trim()) return;
+
+    setSaving(true);
+    try {
+      await axios.post(apiUrl('/api/v2/checklists/admin/templates'), {
+        name: newTemplateValue.name.trim(),
+        audience: newTemplateValue.audience.trim() || null,
+        trigger_event: newTemplateValue.trigger_event.trim() || null
+      });
+      setShowAddTemplate(false);
+      setNewTemplateValue({ name: '', audience: '', trigger_event: '' });
+      if (onRefresh) onRefresh();
+    } catch (error) {
+      console.error('Failed to create template:', error);
+      alert(error.response?.data?.error || 'Failed to create template');
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Section handlers
@@ -888,6 +914,86 @@ function TemplatesView({ templates, onRefresh }) {
           </AnimatePresence>
         </motion.div>
       ))}
+
+      {/* Add Template Button/Form */}
+      {showAddTemplate ? (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-card p-6 border-2 border-dashed border-nano-purple/50"
+        >
+          <h3 className="text-lg font-bold text-white mb-4">Create New Checklist Template</h3>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-2">Template Name *</label>
+              <input
+                type="text"
+                value={newTemplateValue.name}
+                onChange={(e) => setNewTemplateValue({ ...newTemplateValue, name: e.target.value })}
+                placeholder="e.g., IT Security Training"
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-nano-purple"
+                autoFocus
+                disabled={saving}
+              />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">Audience</label>
+                <input
+                  type="text"
+                  value={newTemplateValue.audience}
+                  onChange={(e) => setNewTemplateValue({ ...newTemplateValue, audience: e.target.value })}
+                  placeholder="e.g., employee, contractor, all"
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-nano-purple"
+                  disabled={saving}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">Trigger Event</label>
+                <input
+                  type="text"
+                  value={newTemplateValue.trigger_event}
+                  onChange={(e) => setNewTemplateValue({ ...newTemplateValue, trigger_event: e.target.value })}
+                  placeholder="e.g., Assigned on hire"
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-nano-purple"
+                  disabled={saving}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                onClick={() => {
+                  setShowAddTemplate(false);
+                  setNewTemplateValue({ name: '', audience: '', trigger_event: '' });
+                }}
+                className="px-5 py-2.5 text-gray-400 hover:bg-white/10 rounded-xl transition-colors"
+                disabled={saving}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddTemplate}
+                disabled={saving || !newTemplateValue.name.trim()}
+                className="px-5 py-2.5 bg-nano-purple text-white rounded-xl font-medium hover:bg-nano-purple/80 transition-colors disabled:opacity-50"
+              >
+                {saving ? 'Creating...' : 'Create Template'}
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      ) : (
+        <motion.button
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          onClick={() => setShowAddTemplate(true)}
+          className="w-full p-6 border-2 border-dashed border-white/20 rounded-2xl text-gray-400 hover:border-nano-purple hover:text-nano-purple transition-colors flex items-center justify-center gap-3"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+          </svg>
+          <span className="font-medium">Add New Template</span>
+        </motion.button>
+      )}
     </div>
   );
 }
