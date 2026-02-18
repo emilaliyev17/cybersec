@@ -127,10 +127,11 @@ router.get('/admin/all', authMiddleware, adminMiddleware, async (req, res) => {
             };
         }));
 
-        // Get all available modules for assignment
+        // Get all available modules for assignment (only active)
         const allModulesResult = await pool.query(`
             SELECT id, title, description, module_order, is_active
             FROM training_modules
+            WHERE is_active = TRUE
             ORDER BY module_order
         `);
 
