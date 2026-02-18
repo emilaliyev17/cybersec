@@ -211,27 +211,8 @@ router.post('/submit', authMiddleware, async (req, res) => {
       });
     } else {
       // ==========================================
-      // FAILED (Score < 80%): Reset all progress
+      // FAILED (Score < 80%): Allow retake without reset
       // ==========================================
-
-      // Reset all module completion flags for this user
-      await client.query(
-        `UPDATE user_progress
-         SET is_completed = FALSE,
-             watched_seconds = 0,
-             completed_at = NULL,
-             last_updated = CURRENT_TIMESTAMP
-         WHERE user_id = $1`,
-        [req.user.id]
-      );
-
-      // Ensure user is not marked as certified
-      await client.query(
-        `UPDATE users
-         SET is_certified = FALSE, certification_date = NULL
-         WHERE id = $1`,
-        [req.user.id]
-      );
 
       await client.query('COMMIT');
 
@@ -243,9 +224,8 @@ router.post('/submit', authMiddleware, async (req, res) => {
         totalQuestions,
         attemptNumber,
         requiredScore: PASSING_SCORE,
-        message: `You scored ${score}%, but ${PASSING_SCORE}% is required to pass. Your training progress has been reset. Please complete all modules again before retaking the quiz.`,
+        message: `You scored ${score}%, but ${PASSING_SCORE}% is required to pass. Please review the training materials and try again.`,
         detailedResults,
-        progressReset: true,
       });
     }
   } catch (error) {

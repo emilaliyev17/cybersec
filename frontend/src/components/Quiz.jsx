@@ -227,13 +227,8 @@ export default function Quiz({ onComplete, onBack }) {
                 : 'bg-gradient-to-r from-nano-blue to-nano-purple text-white shadow-nano-blue/20'
                 }`}
             >
-              {isPassed ? 'Continue to Dashboard' : 'Return to Training'}
+              {isPassed ? 'Continue to Dashboard' : 'Retake Assessment'}
             </button>
-            {result.progressReset && (
-              <p className="text-center text-red-400 text-sm mt-4 font-medium animate-pulse">
-                ⚠ Your training progress has been reset. Please complete all modules again.
-              </p>
-            )}
           </div>
         </motion.div>
       </div>

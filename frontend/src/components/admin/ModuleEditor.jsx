@@ -87,6 +87,103 @@ export default function ModuleEditor() {
     );
   }
 
+  const activeModules = modules.filter(m => m.is_active);
+  const inactiveModules = modules.filter(m => !m.is_active);
+
+  const getModuleTypeBadge = (module) => {
+    const type = module.content_json?.type;
+    if (type === 'presentation') return { label: 'Presentation', className: 'bg-cyan-500/20 text-cyan-400' };
+    if (type === 'video') return { label: 'Video', className: 'bg-nano-blue/20 text-nano-blue' };
+    return { label: 'Interactive', className: 'bg-gray-500/20 text-gray-400' };
+  };
+
+  const renderModuleCard = (module, index) => {
+    const typeBadge = getModuleTypeBadge(module);
+    return (
+      <motion.div
+        key={module.id}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: index * 0.05 }}
+        className={`glass-card p-6 ${!module.is_active ? 'opacity-60' : ''}`}
+      >
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-2">
+              <span className="px-2 py-1 rounded-md text-xs font-medium bg-nano-purple/20 text-nano-purple">
+                Order: {module.module_order}
+              </span>
+              <span className={`px-2 py-1 rounded-md text-xs font-medium ${typeBadge.className}`}>
+                {typeBadge.label}
+              </span>
+              {!module.is_active && (
+                <span className="px-2 py-1 rounded-md text-xs font-medium bg-red-500/20 text-red-400">
+                  Inactive
+                </span>
+              )}
+            </div>
+            <h3 className="text-xl font-bold text-white mb-2">{module.title}</h3>
+            <p className="text-gray-400 text-sm mb-4">{module.description}</p>
+
+            <div className="flex items-center gap-6 text-sm text-gray-500">
+              <span className="flex items-center gap-1">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {module.completions || 0} completions
+              </span>
+              <span className="flex items-center gap-1">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+                {module.total_starts || 0} starts
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 ml-4">
+            <button
+              onClick={() => handleToggleActive(module)}
+              className={`p-2 rounded-lg transition-colors ${
+                module.is_active
+                  ? 'bg-banano-green/20 text-banano-green hover:bg-banano-green/30'
+                  : 'bg-gray-500/20 text-gray-400 hover:bg-gray-500/30'
+              }`}
+              title={module.is_active ? 'Deactivate' : 'Activate'}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                {module.is_active ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                )}
+              </svg>
+            </button>
+            <button
+              onClick={() => setEditingModule(module)}
+              className="p-2 rounded-lg bg-nano-blue/20 text-nano-blue hover:bg-nano-blue/30 transition-colors"
+              title="Edit"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+            </button>
+            <button
+              onClick={() => handleDeleteModule(module.id)}
+              className="p-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
+              title="Delete"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    );
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -102,101 +199,25 @@ export default function ModuleEditor() {
         </button>
       </div>
 
-      <div className="space-y-4">
-        {modules.map((module, index) => (
-          <motion.div
-            key={module.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.05 }}
-            className={`glass-card p-6 ${!module.is_active ? 'opacity-60' : ''}`}
-          >
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
-                  <span className="px-2 py-1 rounded-md text-xs font-medium bg-nano-purple/20 text-nano-purple">
-                    Order: {module.module_order}
-                  </span>
-                  <span className={`px-2 py-1 rounded-md text-xs font-medium ${
-                    module.content_json?.type === 'video'
-                      ? 'bg-nano-blue/20 text-nano-blue'
-                      : 'bg-gray-500/20 text-gray-400'
-                  }`}>
-                    {module.content_json?.type === 'video' ? 'Video' : 'Interactive'}
-                  </span>
-                  {!module.is_active && (
-                    <span className="px-2 py-1 rounded-md text-xs font-medium bg-red-500/20 text-red-400">
-                      Inactive
-                    </span>
-                  )}
-                </div>
-                <h3 className="text-xl font-bold text-white mb-2">{module.title}</h3>
-                <p className="text-gray-400 text-sm mb-4">{module.description}</p>
-
-                <div className="flex items-center gap-6 text-sm text-gray-500">
-                  <span className="flex items-center gap-1">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    {Math.round(module.required_time_seconds / 60)} min
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    {module.completions || 0} completions
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                    {module.total_starts || 0} starts
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 ml-4">
-                <button
-                  onClick={() => handleToggleActive(module)}
-                  className={`p-2 rounded-lg transition-colors ${
-                    module.is_active
-                      ? 'bg-banano-green/20 text-banano-green hover:bg-banano-green/30'
-                      : 'bg-gray-500/20 text-gray-400 hover:bg-gray-500/30'
-                  }`}
-                  title={module.is_active ? 'Deactivate' : 'Activate'}
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    {module.is_active ? (
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    ) : (
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                    )}
-                  </svg>
-                </button>
-                <button
-                  onClick={() => setEditingModule(module)}
-                  className="p-2 rounded-lg bg-nano-blue/20 text-nano-blue hover:bg-nano-blue/30 transition-colors"
-                  title="Edit"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                </button>
-                <button
-                  onClick={() => handleDeleteModule(module.id)}
-                  className="p-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
-                  title="Delete"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        ))}
+      {/* Active Modules */}
+      <div className="space-y-4 mb-8">
+        {activeModules.map((module, index) => renderModuleCard(module, index))}
       </div>
+
+      {/* Inactive Modules (collapsed) */}
+      {inactiveModules.length > 0 && (
+        <details className="group">
+          <summary className="cursor-pointer text-gray-500 hover:text-gray-300 transition-colors flex items-center gap-2 mb-4 select-none">
+            <svg className="w-4 h-4 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+            <span className="text-sm font-medium">Inactive Modules ({inactiveModules.length})</span>
+          </summary>
+          <div className="space-y-4">
+            {inactiveModules.map((module, index) => renderModuleCard(module, index))}
+          </div>
+        </details>
+      )}
     </div>
   );
 }

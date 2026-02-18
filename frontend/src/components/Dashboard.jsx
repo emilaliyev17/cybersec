@@ -627,9 +627,9 @@ function SecurityTrainingSection({ modules, user, quizEligibility, completedModu
 
       {/* Modules Grid */}
       <div>
-        <h3 className="text-2xl font-bold text-white mb-2">Training Modules</h3>
-        <p className="text-gray-400 mb-6">Complete all modules to unlock the assessment</p>
-        
+        <h3 className="text-2xl font-bold text-white mb-2">Training Materials</h3>
+        <p className="text-gray-400 mb-6">Review all presentations to unlock the assessment</p>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           {modules.map((module, index) => (
             <motion.div
@@ -638,8 +638,8 @@ function SecurityTrainingSection({ modules, user, quizEligibility, completedModu
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.05 * index }}
               className={`rounded-3xl border p-6 transition-all hover:scale-[1.01] cursor-pointer ${
-                module.is_completed 
-                  ? 'bg-emerald-500/5 border-emerald-500/20 hover:border-emerald-500/40' 
+                module.is_completed
+                  ? 'bg-emerald-500/5 border-emerald-500/20 hover:border-emerald-500/40'
                   : 'bg-white/5 border-white/10 hover:border-white/20'
               }`}
               onClick={() => onSelectModule(module.id)}
@@ -656,12 +656,14 @@ function SecurityTrainingSection({ modules, user, quizEligibility, completedModu
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                       </svg>
                     ) : (
-                      <span>{(index + 1).toString().padStart(2, '0')}</span>
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+                      </svg>
                     )}
                   </div>
                   <div>
                     <h4 className="font-bold text-white">{module.title}</h4>
-                    <p className="text-xs text-gray-500">{module.content_json?.sections?.length || 0} sections</p>
+                    <p className="text-xs text-gray-500">Presentation</p>
                   </div>
                 </div>
                 <span className={`px-3 py-1 rounded-lg text-xs font-bold ${
@@ -669,7 +671,7 @@ function SecurityTrainingSection({ modules, user, quizEligibility, completedModu
                     ? 'bg-emerald-500/20 text-emerald-400'
                     : 'bg-white/10 text-gray-400'
                 }`}>
-                  {module.is_completed ? 'Done' : 'Pending'}
+                  {module.is_completed ? 'Reviewed' : 'Pending'}
                 </span>
               </div>
               <p className="text-sm text-gray-400 line-clamp-2">{module.description}</p>
