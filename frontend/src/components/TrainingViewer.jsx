@@ -277,7 +277,7 @@ export default function TrainingViewer({ moduleId, onComplete, onBack }) {
             <button
               onClick={() => setCurrentSlide((p) => Math.max(0, p - 1))}
               disabled={currentSlide === 0}
-              className="btn-neon-secondary disabled:opacity-30 disabled:cursor-not-allowed px-6"
+              className="btn-neon-secondary disabled:opacity-30 disabled:cursor-not-allowed px-6 min-w-[150px] text-center"
             >
               Previous
             </button>
@@ -287,7 +287,7 @@ export default function TrainingViewer({ moduleId, onComplete, onBack }) {
             <button
               onClick={() => setCurrentSlide((p) => Math.min(totalSlides - 1, p + 1))}
               disabled={currentSlide >= totalSlides - 1}
-              className="btn-neon-primary disabled:opacity-30 disabled:cursor-not-allowed px-6"
+              className="btn-neon-primary disabled:opacity-30 disabled:cursor-not-allowed px-6 min-w-[150px] text-center"
             >
               Next
             </button>
@@ -463,7 +463,7 @@ export default function TrainingViewer({ moduleId, onComplete, onBack }) {
                 <button
                   onClick={() => setCurrentSlide((p) => Math.max(0, p - 1))}
                   disabled={!canGoPrev}
-                  className="btn-neon-secondary disabled:opacity-30 disabled:cursor-not-allowed px-6"
+                  className="btn-neon-secondary disabled:opacity-30 disabled:cursor-not-allowed px-6 min-w-[150px] text-center"
                 >
                   Previous
                 </button>
@@ -471,6 +471,7 @@ export default function TrainingViewer({ moduleId, onComplete, onBack }) {
                 <div className="flex items-center gap-3 hidden sm:flex">
                   <span className="text-sm text-gray-400">
                     Slide {currentSlide + 1} of {totalSlides}
+                    {!currentSlideViewed && ` • ${remaining}s`}
                   </span>
                   <button
                     onClick={toggleFullscreen}
@@ -479,7 +480,7 @@ export default function TrainingViewer({ moduleId, onComplete, onBack }) {
                   >
                     {isFullscreen ? (
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 9L4 4m0 0v4m0-4h4m7 0l5-5m0 0v4m0-4h-4m-7 15l-5 5m0 0v-4m0 4h4m7 0l5 5m0 0v-4m0 4h-4" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 9v-4m0 4h-4m4 0l-5-5M15 9v-4m0 4h4m-4 0l5-5M9 15v4m0-4h-4m4 0l-5 5M15 15v4m0-4h4m-4 0l5 5" />
                       </svg>
                     ) : (
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -495,21 +496,13 @@ export default function TrainingViewer({ moduleId, onComplete, onBack }) {
                     disabled={!canGoNext}
                     whileHover={canGoNext ? { scale: 1.03 } : {}}
                     whileTap={canGoNext ? { scale: 0.97 } : {}}
-                    className={`px-6 py-3 rounded-xl font-bold transition-all flex items-center gap-2 ${
+                    className={`px-6 py-3 rounded-xl font-bold transition-all min-w-[150px] text-center justify-center ${
                       canGoNext
                         ? 'bg-gradient-to-r from-nano-blue to-nano-purple text-white shadow-lg shadow-nano-blue/20 hover:shadow-nano-blue/40'
                         : 'bg-gray-800 text-gray-500 cursor-not-allowed border border-white/5'
                     }`}
                   >
                     Next Slide
-                    {!currentSlideViewed && (
-                      <span className="text-xs opacity-70 ml-1">({remaining}s)</span>
-                    )}
-                    {canGoNext && (
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    )}
                   </motion.button>
                 ) : (
                   <motion.button
@@ -517,7 +510,7 @@ export default function TrainingViewer({ moduleId, onComplete, onBack }) {
                     disabled={!allSlidesViewed || saving}
                     whileHover={allSlidesViewed ? { scale: 1.03 } : {}}
                     whileTap={allSlidesViewed ? { scale: 0.97 } : {}}
-                    className={`px-8 py-3 rounded-xl font-bold transition-all shadow-lg flex items-center gap-2 ${
+                    className={`px-6 py-3 rounded-xl font-bold transition-all shadow-lg min-w-[150px] text-center justify-center flex items-center gap-2 ${
                       allSlidesViewed
                         ? 'bg-banano-green text-white hover:bg-green-500 hover:shadow-banano-green/40'
                         : 'bg-gray-800 text-gray-500 cursor-not-allowed border border-white/5'
