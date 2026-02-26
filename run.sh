@@ -56,22 +56,21 @@ brew services stop postgresql 2>/dev/null
 pg_ctl stop -D /usr/local/var/postgres 2>/dev/null
 pg_ctl stop -D /opt/homebrew/var/postgres 2>/dev/null
 
-# Kill any processes on our ports
+# Kill any processes on our ports (leave Docker postgres alone)
 pkill -f "cloud-sql-proxy" 2>/dev/null
 pkill -f "nodemon.*security-onboarding" 2>/dev/null
-pkill -9 -f postgres 2>/dev/null
 lsof -ti :5001 | xargs kill -9 2>/dev/null
 lsof -ti :3000 | xargs kill -9 2>/dev/null
-lsof -ti :5432 | xargs kill -9 2>/dev/null
+lsof -ti :5433 | xargs kill -9 2>/dev/null
 
 sleep 2
-echo "✅ Ports cleared (local PostgreSQL stopped)"
+echo "✅ Ports cleared"
 
 # ------------------------------------------------------------------------------
 # 3. Start Cloud SQL Proxy
 # ------------------------------------------------------------------------------
 echo "🔌 Connecting to Cloud SQL..."
-$PROXY_PATH contract-management-473819:us-central1:strategybrix-postgres --port=5432 > /dev/null 2>&1 &
+$PROXY_PATH contract-management-473819:us-central1:strategybrix-postgres --port=5433 > /dev/null 2>&1 &
 PROXY_PID=$!
 sleep 3
 
@@ -94,11 +93,11 @@ cd backend
 export PORT=5001
 export NODE_ENV=development
 export DB_HOST=localhost
-export DB_PORT=5432
+export DB_PORT=5433
 export DB_NAME=security_onboarding
 export DB_USER=security_app
 export DB_PASSWORD=R0BrzoOYXWFkXRrqusb1ljrT
-export JWT_SECRET=$(gcloud secrets versions access latest --secret=jwt-secret 2>/dev/null || echo "dev-jwt-secret-fallback")
+export JWT_SECRET=$(timeout 5 gcloud secrets versions access latest --secret=jwt-secret 2>/dev/null || echo "dev-jwt-secret-fallback")
 export FRONTEND_URL=http://localhost:3000
 
 # Dependencies check
