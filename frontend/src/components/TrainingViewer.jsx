@@ -229,6 +229,9 @@ export default function TrainingViewer({ moduleId, onComplete, onBack }) {
   const canGoNext = currentSlideViewed && currentSlide < totalSlides - 1;
   const canGoPrev = currentSlide > 0;
 
+  // A slide is accessible if all previous slides have been viewed
+  const isSlideAccessible = (i) => i === 0 || Array.from({ length: i }, (_, idx) => idx).every((idx) => viewedSlides.has(idx));
+
   // If module already completed, show free-browse mode
   if (module.is_completed) {
     return (
@@ -360,32 +363,40 @@ export default function TrainingViewer({ moduleId, onComplete, onBack }) {
           <div className="glass-card p-4 sticky top-28">
             <h3 className="text-white font-bold mb-4 px-2">Slides</h3>
             <div className="space-y-2 max-h-[60vh] overflow-y-auto custom-scrollbar pr-1">
-              {Array.from({ length: totalSlides }, (_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setCurrentSlide(i)}
-                  className={`w-full text-left px-4 py-3 rounded-xl text-sm transition-all duration-200 ${i === currentSlide
-                      ? 'bg-nano-blue text-white shadow-lg shadow-nano-blue/20 font-medium'
-                      : viewedSlides.has(i)
-                        ? 'text-gray-300 hover:bg-white/5'
-                        : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
-                    }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <span
-                      className={`w-6 h-6 rounded-full flex items-center justify-center text-xs border ${i === currentSlide
-                          ? 'border-white text-white'
-                          : viewedSlides.has(i)
-                            ? 'border-banano-green text-banano-green'
-                            : 'border-gray-600'
-                        }`}
-                    >
-                      {viewedSlides.has(i) ? '✓' : i + 1}
-                    </span>
-                    <span className="line-clamp-1">Slide {i + 1}</span>
-                  </div>
-                </button>
-              ))}
+              {Array.from({ length: totalSlides }, (_, i) => {
+                const accessible = isSlideAccessible(i);
+                return (
+                  <button
+                    key={i}
+                    onClick={() => accessible && setCurrentSlide(i)}
+                    disabled={!accessible}
+                    className={`w-full text-left px-4 py-3 rounded-xl text-sm transition-all duration-200 ${!accessible
+                      ? 'text-gray-600 cursor-not-allowed opacity-40'
+                      : i === currentSlide
+                        ? 'bg-nano-blue text-white shadow-lg shadow-nano-blue/20 font-medium'
+                        : viewedSlides.has(i)
+                          ? 'text-gray-300 hover:bg-white/5'
+                          : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
+                      }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={`w-6 h-6 rounded-full flex items-center justify-center text-xs border ${!accessible
+                          ? 'border-gray-700 text-gray-600'
+                          : i === currentSlide
+                            ? 'border-white text-white'
+                            : viewedSlides.has(i)
+                              ? 'border-banano-green text-banano-green'
+                              : 'border-gray-600'
+                          }`}
+                      >
+                        {!accessible ? '🔒' : viewedSlides.has(i) ? '✓' : i + 1}
+                      </span>
+                      <span className="line-clamp-1">Slide {i + 1}</span>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -502,8 +513,8 @@ export default function TrainingViewer({ moduleId, onComplete, onBack }) {
                     whileHover={canGoNext ? { scale: 1.03 } : {}}
                     whileTap={canGoNext ? { scale: 0.97 } : {}}
                     className={`px-6 py-3 rounded-xl font-bold transition-all min-w-[150px] text-center justify-center ${canGoNext
-                        ? 'bg-gradient-to-r from-nano-blue to-nano-purple text-white shadow-lg shadow-nano-blue/20 hover:shadow-nano-blue/40'
-                        : 'bg-gray-800 text-gray-500 cursor-not-allowed border border-white/5'
+                      ? 'bg-gradient-to-r from-nano-blue to-nano-purple text-white shadow-lg shadow-nano-blue/20 hover:shadow-nano-blue/40'
+                      : 'bg-gray-800 text-gray-500 cursor-not-allowed border border-white/5'
                       }`}
                   >
                     Next Slide
@@ -515,8 +526,8 @@ export default function TrainingViewer({ moduleId, onComplete, onBack }) {
                     whileHover={allSlidesViewed ? { scale: 1.03 } : {}}
                     whileTap={allSlidesViewed ? { scale: 0.97 } : {}}
                     className={`px-6 py-3 rounded-xl font-bold transition-all shadow-lg min-w-[150px] text-center justify-center flex items-center gap-2 ${allSlidesViewed
-                        ? 'bg-banano-green text-white hover:bg-green-500 hover:shadow-banano-green/40'
-                        : 'bg-gray-800 text-gray-500 cursor-not-allowed border border-white/5'
+                      ? 'bg-banano-green text-white hover:bg-green-500 hover:shadow-banano-green/40'
+                      : 'bg-gray-800 text-gray-500 cursor-not-allowed border border-white/5'
                       }`}
                   >
                     {saving ? (
