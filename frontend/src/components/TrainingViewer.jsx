@@ -4,6 +4,11 @@ import { apiUrl } from '../config/api';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const SLIDE_DURATION = 30; // seconds per slide
+const FIRST_SLIDE_DURATION = 3; // seconds for the first (title) slide
+
+// Returns the required duration for a given slide index
+const getSlideDuration = (slideIndex) =>
+  slideIndex === 0 ? FIRST_SLIDE_DURATION : SLIDE_DURATION;
 
 const PRESENTATIONS = [
   {
@@ -92,7 +97,7 @@ export default function TrainingViewer({ moduleId, onComplete, onBack }) {
     slideProgressRef.current[prevSlideRef.current] = slideTimer;
 
     if (viewedSlides.has(currentSlide)) {
-      setSlideTimer(SLIDE_DURATION);
+      setSlideTimer(getSlideDuration(currentSlide));
     } else {
       // Restore saved progress (or 0 if never visited)
       setSlideTimer(slideProgressRef.current[currentSlide] || 0);
@@ -111,11 +116,12 @@ export default function TrainingViewer({ moduleId, onComplete, onBack }) {
       setSlideTimer((prev) => {
         const next = prev + 1;
         slideProgressRef.current[currentSlide] = next;
-        if (next >= SLIDE_DURATION) {
+        const duration = getSlideDuration(currentSlide);
+        if (next >= duration) {
           clearInterval(timerRef.current);
           timerRef.current = null;
           setViewedSlides((prevViewed) => new Set([...prevViewed, currentSlide]));
-          return SLIDE_DURATION;
+          return duration;
         }
         return next;
       });
@@ -147,9 +153,9 @@ export default function TrainingViewer({ moduleId, onComplete, onBack }) {
   const toggleFullscreen = useCallback(() => {
     if (!fullscreenRef.current) return;
     if (!document.fullscreenElement) {
-      fullscreenRef.current.requestFullscreen().catch(() => {});
+      fullscreenRef.current.requestFullscreen().catch(() => { });
     } else {
-      document.exitFullscreen().catch(() => {});
+      document.exitFullscreen().catch(() => { });
     }
   }, []);
 
@@ -216,8 +222,9 @@ export default function TrainingViewer({ moduleId, onComplete, onBack }) {
   const totalSlides = presentation.slideCount;
   const currentSlideViewed = viewedSlides.has(currentSlide);
   const allSlidesViewed = viewedSlides.size >= totalSlides;
-  const timerProgress = Math.min(slideTimer / SLIDE_DURATION, 1);
-  const remaining = SLIDE_DURATION - slideTimer;
+  const currentDuration = getSlideDuration(currentSlide);
+  const timerProgress = Math.min(slideTimer / currentDuration, 1);
+  const remaining = currentDuration - slideTimer;
 
   const canGoNext = currentSlideViewed && currentSlide < totalSlides - 1;
   const canGoPrev = currentSlide > 0;
@@ -357,23 +364,21 @@ export default function TrainingViewer({ moduleId, onComplete, onBack }) {
                 <button
                   key={i}
                   onClick={() => setCurrentSlide(i)}
-                  className={`w-full text-left px-4 py-3 rounded-xl text-sm transition-all duration-200 ${
-                    i === currentSlide
+                  className={`w-full text-left px-4 py-3 rounded-xl text-sm transition-all duration-200 ${i === currentSlide
                       ? 'bg-nano-blue text-white shadow-lg shadow-nano-blue/20 font-medium'
                       : viewedSlides.has(i)
                         ? 'text-gray-300 hover:bg-white/5'
                         : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center gap-3">
                     <span
-                      className={`w-6 h-6 rounded-full flex items-center justify-center text-xs border ${
-                        i === currentSlide
+                      className={`w-6 h-6 rounded-full flex items-center justify-center text-xs border ${i === currentSlide
                           ? 'border-white text-white'
                           : viewedSlides.has(i)
                             ? 'border-banano-green text-banano-green'
                             : 'border-gray-600'
-                      }`}
+                        }`}
                     >
                       {viewedSlides.has(i) ? '✓' : i + 1}
                     </span>
@@ -496,11 +501,10 @@ export default function TrainingViewer({ moduleId, onComplete, onBack }) {
                     disabled={!canGoNext}
                     whileHover={canGoNext ? { scale: 1.03 } : {}}
                     whileTap={canGoNext ? { scale: 0.97 } : {}}
-                    className={`px-6 py-3 rounded-xl font-bold transition-all min-w-[150px] text-center justify-center ${
-                      canGoNext
+                    className={`px-6 py-3 rounded-xl font-bold transition-all min-w-[150px] text-center justify-center ${canGoNext
                         ? 'bg-gradient-to-r from-nano-blue to-nano-purple text-white shadow-lg shadow-nano-blue/20 hover:shadow-nano-blue/40'
                         : 'bg-gray-800 text-gray-500 cursor-not-allowed border border-white/5'
-                    }`}
+                      }`}
                   >
                     Next Slide
                   </motion.button>
@@ -510,11 +514,10 @@ export default function TrainingViewer({ moduleId, onComplete, onBack }) {
                     disabled={!allSlidesViewed || saving}
                     whileHover={allSlidesViewed ? { scale: 1.03 } : {}}
                     whileTap={allSlidesViewed ? { scale: 0.97 } : {}}
-                    className={`px-6 py-3 rounded-xl font-bold transition-all shadow-lg min-w-[150px] text-center justify-center flex items-center gap-2 ${
-                      allSlidesViewed
+                    className={`px-6 py-3 rounded-xl font-bold transition-all shadow-lg min-w-[150px] text-center justify-center flex items-center gap-2 ${allSlidesViewed
                         ? 'bg-banano-green text-white hover:bg-green-500 hover:shadow-banano-green/40'
                         : 'bg-gray-800 text-gray-500 cursor-not-allowed border border-white/5'
-                    }`}
+                      }`}
                   >
                     {saving ? (
                       <span className="flex items-center gap-2">
