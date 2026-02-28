@@ -118,20 +118,19 @@ export default function Login() {
         className="w-full max-w-md relative z-10"
       >
         {/* Logo/Header */}
-        <div className="text-center mb-10 relative">
-          {/* The Magic Lock */}
+        <div className="text-center mb-10 relative mt-8">
+          {/* The StrategyBrix Logo (Icon only) */}
           <motion.div
             layoutId="shared-lock-element"
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            whileHover={{ scale: 1.05, rotate: 5 }}
-            className="inline-flex items-center justify-center w-24 h-24 bg-gradient-dark rounded-2xl mb-6 shadow-[0_0_30px_rgba(32,156,233,0.3)] border border-white/10 relative z-20"
+            whileHover={{ scale: 1.05 }}
+            className="inline-flex items-center justify-center w-28 h-28 bg-gradient-dark rounded-2xl mb-6 shadow-[0_0_30px_rgba(32,156,233,0.3)] border border-white/10 relative z-20 overflow-hidden"
           >
-            <motion.svg
-              layoutId="shared-lock-icon"
-              className="w-12 h-12 text-nano-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-            </motion.svg>
+            <img
+              src="/logo-icon.png"
+              alt="StrategyBrix Icon"
+              className="w-full h-full object-contain invert grayscale brightness-200 drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]"
+            />
 
             {/* Success Glow Effect */}
             {loading && !error && (
@@ -142,10 +141,11 @@ export default function Login() {
               />
             )}
           </motion.div>
-          <h1 className="text-4xl font-bold mb-2">
-            <span className="text-gradient">Security Portal</span>
+
+          <h1 className="text-4xl font-bold tracking-wide mb-2 text-white">
+            <span className="text-[#209CE9] text-xs uppercase tracking-[0.4em] block mb-3 font-semibold">Welcome to</span>
+            Strategy<span className="opacity-70">Brix.</span>
           </h1>
-          <p className="text-gray-400">Employee Onboarding & Awareness</p>
         </div>
 
         {/* Glass Card */}
