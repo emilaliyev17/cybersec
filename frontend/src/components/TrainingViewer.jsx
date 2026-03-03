@@ -3,12 +3,12 @@ import axios from 'axios';
 import { apiUrl } from '../config/api';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const SLIDE_DURATION = 30; // seconds per slide
-const FIRST_SLIDE_DURATION = 3; // seconds for the first (title) slide
+const SLIDE_DURATION = 30; // seconds per slide (default for modules without per-slide durations)
 
-// Returns the required duration for a given slide index
-const getSlideDuration = (slideIndex) =>
-  slideIndex === 0 ? FIRST_SLIDE_DURATION : SLIDE_DURATION;
+// Returns the required duration for a given slide index.
+// If durations array is provided (per-slide config), uses it; otherwise falls back to default.
+const getSlideDuration = (slideIndex, durations) =>
+  durations ? (durations[slideIndex] ?? SLIDE_DURATION) : (slideIndex === 0 ? 3 : SLIDE_DURATION);
 
 const PRESENTATIONS = [
   {
@@ -18,6 +18,8 @@ const PRESENTATIONS = [
     slidesPath: '/slides/ai-best-practices',
     slideCount: 10,
     icon: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z',
+    slideDurations: [3, 26, 24, 28, 24, 23, 22, 24, 20, 21],
+    audioPath: '/audio/ai-best-practices/AI Deck - Slide',
   },
   {
     id: 'phishing-awareness',
@@ -26,6 +28,8 @@ const PRESENTATIONS = [
     slidesPath: '/slides/phishing-awareness',
     slideCount: 21,
     icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z',
+    slideDurations: [3, 19, 20, 17, 18, 19, 17, 16, 17, 19, 17, 17, 15, 18, 16, 18, 15, 16, 19, 27, 12],
+    audioPath: '/audio/phishing-awareness/Phishing Deck - Slide',
   },
 ];
 
@@ -52,6 +56,7 @@ export default function TrainingViewer({ moduleId, onComplete, onBack }) {
   const slideProgressRef = useRef({}); // {slideIndex: elapsedSeconds}
   const prevSlideRef = useRef(0);
   const fullscreenRef = useRef(null);
+  const audioRef = useRef(null);
 
   // Fetch module data
   useEffect(() => {
@@ -72,12 +77,24 @@ export default function TrainingViewer({ moduleId, onComplete, onBack }) {
     }
   }, [moduleId]);
 
-  // Focus/blur tracking — pause timer when user tabs away
+  // Focus/blur tracking — pause timer and audio when user tabs away
   useEffect(() => {
-    const handleBlur = () => setIsFocused(false);
-    const handleFocus = () => setIsFocused(true);
+    const handleBlur = () => {
+      setIsFocused(false);
+      if (audioRef.current) audioRef.current.pause();
+    };
+    const handleFocus = () => {
+      setIsFocused(true);
+      if (audioRef.current) audioRef.current.play().catch(() => {});
+    };
     const handleVisibility = () => {
-      setIsFocused(!document.hidden);
+      if (document.hidden) {
+        setIsFocused(false);
+        if (audioRef.current) audioRef.current.pause();
+      } else {
+        setIsFocused(true);
+        if (audioRef.current) audioRef.current.play().catch(() => {});
+      }
     };
 
     window.addEventListener('blur', handleBlur);
@@ -97,7 +114,7 @@ export default function TrainingViewer({ moduleId, onComplete, onBack }) {
     slideProgressRef.current[prevSlideRef.current] = slideTimer;
 
     if (viewedSlides.has(currentSlide)) {
-      setSlideTimer(getSlideDuration(currentSlide));
+      setSlideTimer(getSlideDuration(currentSlide, getPresentation()?.slideDurations));
     } else {
       // Restore saved progress (or 0 if never visited)
       setSlideTimer(slideProgressRef.current[currentSlide] || 0);
@@ -116,7 +133,7 @@ export default function TrainingViewer({ moduleId, onComplete, onBack }) {
       setSlideTimer((prev) => {
         const next = prev + 1;
         slideProgressRef.current[currentSlide] = next;
-        const duration = getSlideDuration(currentSlide);
+        const duration = getSlideDuration(currentSlide, getPresentation()?.slideDurations);
         if (next >= duration) {
           clearInterval(timerRef.current);
           timerRef.current = null;
@@ -148,6 +165,27 @@ export default function TrainingViewer({ moduleId, onComplete, onBack }) {
       }
     }
   }, [currentSlide, module]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Audio playback for slides with audioPath configured (slides 2+)
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    const presentation = getPresentation();
+    if (presentation?.audioPath && currentSlide >= 1) {
+      const slideNum = currentSlide + 1;
+      const audio = new Audio(`${presentation.audioPath} ${slideNum}.wav`);
+      audio.play().catch(() => {});
+      audioRef.current = audio;
+    }
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, [currentSlide]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fullscreen support
   const toggleFullscreen = useCallback(() => {
@@ -222,7 +260,7 @@ export default function TrainingViewer({ moduleId, onComplete, onBack }) {
   const totalSlides = presentation.slideCount;
   const currentSlideViewed = viewedSlides.has(currentSlide);
   const allSlidesViewed = viewedSlides.size >= totalSlides;
-  const currentDuration = getSlideDuration(currentSlide);
+  const currentDuration = getSlideDuration(currentSlide, presentation?.slideDurations);
   const timerProgress = Math.min(slideTimer / currentDuration, 1);
   const remaining = currentDuration - slideTimer;
 
