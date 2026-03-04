@@ -128,7 +128,7 @@ export default function Login() {
           >
             <img
               src="/logo-icon.png"
-              alt="StrategyBrix Icon"
+              alt="StrategyBRIX Icon"
               className="w-full h-full object-contain invert grayscale brightness-200 drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]"
             />
 
@@ -144,7 +144,7 @@ export default function Login() {
 
           <h1 className="text-4xl font-bold tracking-wide mb-2 text-white">
             <span className="text-[#209CE9] text-xs uppercase tracking-[0.4em] block mb-3 font-semibold">Welcome to</span>
-            Strategy<span className="opacity-70">Brix.</span>
+            Strategy<span className="opacity-70">BRIX</span>
           </h1>
         </div>
 
@@ -256,23 +256,13 @@ export default function Login() {
               )}
             </button>
           </form>
-
-          {/* Demo Credentials */}
-          <div className="mt-8 pt-6 border-t border-white/10 text-center">
-            <p className="text-xs text-gray-500 uppercase tracking-widest mb-3">Demo Credentials</p>
-            <div className="inline-flex gap-4 text-xs font-mono text-nano-blue bg-nano-blue/10 px-4 py-2 rounded-lg">
-              <span>john.smith@company.com</span>
-              <span className="text-white/20">|</span>
-              <span>password123</span>
-            </div>
-          </div>
         </div>
 
         {/* Footer */}
         <p className="text-center text-gray-500 text-sm mt-8">
-          © 2025 Security Awareness Training
+          © 2026 StrategyBRIX Onboarding Portal
         </p>
-      </motion.div>
-    </div>
+      </motion.div >
+    </div >
   );
 }
