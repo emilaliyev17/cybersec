@@ -10,6 +10,7 @@ import QuestionEditor from './QuestionEditor';
 import TrackManagement from './TrackManagement';
 import ChecklistManagement from './ChecklistManagement';
 import OnboardingProgressWidget from './OnboardingProgressWidget';
+import BonusCalculator from './bonus/BonusCalculator';
 
 export default function AdminDashboard() {
   const { user, logout } = useAuth();
@@ -42,6 +43,7 @@ export default function AdminDashboard() {
     { id: 'modules', label: 'Modules', icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10' },
     { id: 'questions', label: 'Questions', icon: 'M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
     { id: 'quiz', label: 'Quiz Results', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4' },
+    { id: 'bonus', label: 'Bonus', icon: 'M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z' },
   ];
 
   // Sidebar width values
@@ -165,6 +167,7 @@ export default function AdminDashboard() {
               {activeTab === 'modules' && 'Edit training modules'}
               {activeTab === 'questions' && 'Manage quiz questions'}
               {activeTab === 'quiz' && 'View quiz results and analytics'}
+              {activeTab === 'bonus' && 'Bonus calculator and configuration'}
             </p>
           </div>
           <div className="flex items-center gap-4">
@@ -208,6 +211,7 @@ export default function AdminDashboard() {
           {activeTab === 'modules' && <ModuleEditor />}
           {activeTab === 'questions' && <QuestionEditor />}
           {activeTab === 'quiz' && <QuizResults />}
+          {activeTab === 'bonus' && <BonusCalculator />}
         </main>
       </motion.div>
     </div>
