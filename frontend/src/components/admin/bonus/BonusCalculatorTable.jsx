@@ -2,17 +2,20 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { apiUrl } from '../../../config/api';
 
-const FX_RATES = { CAD: 0.735, USD: 1, GBP: 1.32, INR: 0.012, MAD: 0.107 };
+const CONFIG_ID = 1;
+
+const FX_FALLBACK = { CAD: 1.36, USD: 1, GBP: 0.79, INR: 83.5, MAD: 9.8 };
 const CURRENCIES = ['CAD', 'USD', 'GBP', 'INR', 'MAD'];
 const RATING_WEIGHTS = { 1: 0, 2: 0, 3: 1, 4: 2, 5: 4 };
 
-function fxToUsd(amount, currency) {
-  return amount * (FX_RATES[currency] || 1);
+function fxToUsd(amount, currency, rates) {
+  const rate = rates[currency] || 1;
+  return rate === 0 ? 0 : amount / rate;
 }
 
-function usdToLcy(amount, currency) {
-  const rate = FX_RATES[currency] || 1;
-  return rate === 0 ? 0 : amount / rate;
+function usdToLcy(amountUsd, currency, rates) {
+  const rate = rates[currency] || 1;
+  return amountUsd * rate;
 }
 
 function fmt(val, decimals = 0) {
@@ -34,9 +37,24 @@ function fmtPct(val, decimals = 2) {
 }
 
 function fmtDate(dateStr) {
-  if (!dateStr) return '-';
+  if (!dateStr) return '';
   const d = new Date(dateStr);
-  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  if (isNaN(d.getTime())) return '';
+  return `${d.getUTCMonth() + 1}/${d.getUTCDate()}/${String(d.getUTCFullYear()).slice(-2)}`;
+}
+
+function parseMdyy(str) {
+  if (!str || !str.trim()) return null;
+  const parts = str.trim().split('/');
+  if (parts.length !== 3) return null;
+  const m = parseInt(parts[0]);
+  const d = parseInt(parts[1]);
+  let y = parseInt(parts[2]);
+  if (isNaN(m) || isNaN(d) || isNaN(y)) return null;
+  if (y < 100) y += y < 50 ? 2000 : 1900;
+  const date = new Date(Date.UTC(y, m - 1, d));
+  if (isNaN(date.getTime())) return null;
+  return date.toISOString().split('T')[0];
 }
 
 function tenureYears(joinDate) {
@@ -58,22 +76,44 @@ function lookupGuidancePct(guidanceRanges, rating, targetRange, milestoneSeq) {
   return 0;
 }
 
+// ─── Main component ──────────────────────────────────────────────────────────
+
 export default function BonusCalculatorTable() {
   const [data, setData] = useState(null);
+  const [tsUsers, setTsUsers] = useState([]);
+  const [fxRates, setFxRates] = useState(FX_FALLBACK);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [newRowActive, setNewRowActive] = useState(false);
+  const [newRowSearch, setNewRowSearch] = useState('');
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const newRowInputRef = useRef(null);
+  const dropdownRef = useRef(null);
   const saveTimers = useRef({});
 
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await axios.get(apiUrl('/api/bonus/calculator/1'));
-      setData(res.data);
+      const calcRes = await axios.get(apiUrl(`/api/bonus/calculator/${CONFIG_ID}`));
+      setData(calcRes.data);
     } catch (err) {
       console.error('Failed to fetch bonus data:', err);
       setError('Failed to load bonus calculator data');
     } finally {
       setLoading(false);
+    }
+    // Fetch ts-users and FX rates separately — don't block the main table
+    try {
+      const tsRes = await axios.get(apiUrl('/api/bonus/ts-users'), { timeout: 6000 });
+      setTsUsers(tsRes.data.users || []);
+    } catch (tsErr) {
+      console.warn('ts-users unavailable (ts_man DB may not be reachable):', tsErr.message);
+    }
+    try {
+      const fxRes = await axios.get(apiUrl('/api/bonus/fx-rates'), { timeout: 6000 });
+      if (fxRes.data.rates) setFxRates(fxRes.data.rates);
+    } catch (fxErr) {
+      console.warn('FX rates unavailable, using fallback:', fxErr.message);
     }
   }, []);
 
@@ -95,14 +135,98 @@ export default function BonusCalculatorTable() {
       if (!prev) return prev;
       const employees = prev.employees.map(e => {
         if (e.id !== empId) return e;
-        return { ...e, [field]: value };
+        const updated = { ...e, [field]: value };
+        if (field === 'hire_date_override') updated.join_date = value;
+        if (field === 'total_comp_lcy') updated.total_comp_lcy = value;
+        return updated;
       });
       return { ...prev, employees };
     });
-
-    const updates = { [field]: value };
-    saveEmployee(empId, updates);
+    saveEmployee(empId, { [field]: value });
   }, [saveEmployee]);
+
+  const filteredTsUsers = useMemo(() => {
+    if (!newRowSearch.trim() || newRowSearch.length < 2) return [];
+    const q = newRowSearch.toLowerCase();
+    return tsUsers.filter(u =>
+      u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+    ).slice(0, 10);
+  }, [tsUsers, newRowSearch]);
+
+  const handleSelectUser = useCallback(async (tsUser) => {
+    setNewRowActive(false);
+    setNewRowSearch('');
+    setDropdownOpen(false);
+    try {
+      const res = await axios.post(apiUrl('/api/bonus/employee'), {
+        config_id: CONFIG_ID,
+        tsman_user_id: tsUser.id,
+        resource_name_override: tsUser.name,
+        title_override: tsUser.title || null,
+        hire_date_override: null,
+      });
+      setData(prev => ({
+        ...prev,
+        employees: [...prev.employees, res.data.employee],
+      }));
+    } catch (err) {
+      console.error('Failed to add employee:', err);
+    }
+  }, []);
+
+  const handleStartNewRow = useCallback(() => {
+    setNewRowActive(true);
+    setNewRowSearch('');
+    setDropdownOpen(false);
+    setTimeout(() => newRowInputRef.current?.focus(), 50);
+  }, []);
+
+  const handleCancelNewRow = useCallback(() => {
+    setNewRowActive(false);
+    setNewRowSearch('');
+    setDropdownOpen(false);
+  }, []);
+
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
+
+  useEffect(() => {
+    if (!dropdownOpen) return;
+    const updatePos = () => {
+      if (newRowInputRef.current) {
+        const rect = newRowInputRef.current.getBoundingClientRect();
+        setDropdownPos({ top: rect.bottom + 4, left: rect.left });
+      }
+    };
+    updatePos();
+    window.addEventListener('scroll', updatePos, true);
+    window.addEventListener('resize', updatePos);
+    const handleClickOutside = (e) => {
+      if (
+        dropdownRef.current && !dropdownRef.current.contains(e.target) &&
+        newRowInputRef.current && !newRowInputRef.current.contains(e.target)
+      ) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      window.removeEventListener('scroll', updatePos, true);
+      window.removeEventListener('resize', updatePos);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [dropdownOpen]);
+
+  const handleDeleteEmployee = useCallback(async (empId) => {
+    try {
+      await axios.delete(apiUrl(`/api/bonus/employee/${empId}`));
+      setData(prev => ({
+        ...prev,
+        employees: prev.employees.filter(e => e.id !== empId),
+      }));
+    } catch (err) {
+      console.error('Failed to delete employee:', err);
+    }
+  }, []);
 
   const updateMilestone = useCallback(async (newSeq) => {
     try {
@@ -148,13 +272,14 @@ export default function BonusCalculatorTable() {
       const currency = emp.lcy_currency || 'USD';
       const tenure = tenureYears(emp.join_date);
 
-      const salaryUsd = fxToUsd(salaryLcy, currency);
+      const salaryUsd = fxToUsd(salaryLcy, currency, fxRates);
       const bonusLcy = Math.round(salaryLcy * bonusPct);
       const bonusUsd = salaryUsd * bonusPct;
-      const signOnUsd = fxToUsd(signOnLcy, currency);
-      const spotUsd = fxToUsd(spotLcy, currency);
-      const totalCompLcy = salaryLcy + bonusLcy + signOnLcy;
-      const totalCompUsd = salaryUsd + bonusUsd + signOnUsd;
+      const signOnUsd = fxToUsd(signOnLcy, currency, fxRates);
+      const spotUsd = fxToUsd(spotLcy, currency, fxRates);
+      const manualTotalCompLcy = emp.total_comp_lcy != null ? parseInt(emp.total_comp_lcy) : null;
+      const totalCompLcy = manualTotalCompLcy || (salaryLcy + bonusLcy + signOnLcy);
+      const totalCompUsd = fxToUsd(totalCompLcy, currency, fxRates);
 
       const rating = emp.rating ? parseInt(emp.rating) : null;
       const targetRange = emp.target_range;
@@ -211,12 +336,9 @@ export default function BonusCalculatorTable() {
     const totalTenureEligible = eligibleWithPerf.reduce((s, r) => s + r.tenure, 0);
 
     const finalRows = rowsWithPerf.map(r => {
-      let adjustedPerfPortion;
-      if (budgetPct > 1) {
-        adjustedPerfPortion = r.initialPerfPortion * (1 / budgetPct);
-      } else {
-        adjustedPerfPortion = r.initialPerfPortion * (1 / budgetPct);
-      }
+      const adjustedPerfPortion = budgetPct > 0
+        ? r.initialPerfPortion * (1 / budgetPct)
+        : r.initialPerfPortion;
 
       const tenureContribPct =
         r.is_active && r.eligible && r.initialPerfPortion > 0 && totalTenureEligible > 0
@@ -226,10 +348,10 @@ export default function BonusCalculatorTable() {
 
       const initialPoolUsd = r.initialPerfPortion + tenurePortion;
       const finalPoolUsd = adjustedPerfPortion + tenurePortion;
-      const finalPoolLcy = usdToLcy(finalPoolUsd, r.currency);
+      const finalPoolLcy = usdToLcy(finalPoolUsd, r.currency, fxRates);
 
       const eoyCompUsd = r.salaryUsd + r.bonusUsd + r.spotUsd + finalPoolUsd;
-      const eoyCompLcy = usdToLcy(eoyCompUsd, r.currency);
+      const eoyCompLcy = usdToLcy(eoyCompUsd, r.currency, fxRates);
       const eoyBonusPct = r.salaryUsd > 0 ? finalPoolUsd / r.salaryUsd : 0;
 
       return {
@@ -281,7 +403,7 @@ export default function BonusCalculatorTable() {
       perfWeight,
       tenureWeight,
     };
-  }, [data]);
+  }, [data, fxRates]);
 
   if (loading) {
     return (
@@ -321,6 +443,7 @@ export default function BonusCalculatorTable() {
             <thead>
               {/* Section headers row */}
               <tr>
+                <th className={`${thBase} bg-white/5`} />
                 <th colSpan={4} className={`${thBase} bg-white/5 text-gray-300 text-center`}>Employee</th>
                 <th colSpan={10} className={`${thBase} bg-nano-blue/20 text-nano-blue text-center`}>Beginning of Year Compensation</th>
                 <th colSpan={3} className={`${thBase} bg-banano-yellow/15 text-banano-yellow text-center`}>Midyear / Spot Bonus</th>
@@ -329,6 +452,8 @@ export default function BonusCalculatorTable() {
               </tr>
               {/* Column headers row */}
               <tr>
+                {/* Delete action */}
+                <th className={`${thBase} bg-white/5 w-6`} />
                 {/* Employee */}
                 <th className={`${thBase} bg-white/5`}>Resource</th>
                 <th className={`${thBase} bg-white/5`}>Title</th>
@@ -371,19 +496,53 @@ export default function BonusCalculatorTable() {
                 const inactive = !r.is_active;
                 const rowCls = inactive ? 'line-through opacity-60' : '';
                 return (
-                  <tr key={r.id} className={`${rowCls} hover:bg-white/5 transition-colors`}>
+                  <tr key={r.id} className={`${rowCls} hover:bg-white/5 transition-colors group`}>
+                    {/* Delete button */}
+                    <td className={`${tdBase} w-6 text-center`}>
+                      <button
+                        onClick={() => handleDeleteEmployee(r.id)}
+                        title="Remove row"
+                        className="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 transition-all"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </td>
                     {/* Employee */}
                     <td className={`${tdBase} font-medium text-white`}>{r.resource_name}</td>
                     <td className={tdBase}>{r.title || '-'}</td>
-                    <td className={tdBase}>{fmtDate(r.join_date)}</td>
-                    <td className={`${tdBase} ${calcCell} text-right`}>{r.tenure.toFixed(2)}</td>
+                    <td className={tdBase}>
+                      <input
+                        type="text"
+                        defaultValue={fmtDate(r.join_date)}
+                        placeholder="m/d/yy"
+                        onBlur={e => {
+                          const iso = parseMdyy(e.target.value);
+                          if (iso && iso !== (r.join_date || '').split('T')[0]) {
+                            updateEmployee(r.id, 'hire_date_override', iso);
+                          }
+                        }}
+                        onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); }}
+                        className={`${inputBase} w-20 text-center`}
+                      />
+                    </td>
+                    <td className={`${tdBase} ${calcCell} text-right`}>{r.tenure.toFixed(1)}</td>
                     {/* BOY Comp */}
-                    <td className={`${tdBase} ${calcCell} text-right`}>{fmt(r.totalCompLcy)}</td>
+                    <td className={tdBase}>
+                      <input
+                        type="number"
+                        value={r.totalCompLcy}
+                        onChange={e => updateEmployee(r.id, 'total_comp_lcy', parseInt(e.target.value) || 0)}
+                        className={`${inputBase} w-28 text-right`}
+                      />
+                    </td>
                     <td className={tdBase}>
                       <select
                         value={r.currency}
                         onChange={e => updateEmployee(r.id, 'lcy_currency', e.target.value)}
-                        className={`${inputBase} w-16`}
+                        className={inputBase}
+                        style={{ minWidth: '5rem' }}
                       >
                         {CURRENCIES.map(c => <option key={c} value={c} className="bg-[#1E293B] text-white">{c}</option>)}
                       </select>
@@ -474,46 +633,127 @@ export default function BonusCalculatorTable() {
                   </tr>
                 );
               })}
+              {/* Inline add row */}
+              {newRowActive ? (
+                <tr className="bg-nano-purple/5">
+                  <td className={`${tdBase} w-6 text-center`}>
+                    <button
+                      onClick={handleCancelNewRow}
+                      title="Cancel"
+                      className="text-gray-500 hover:text-red-400 transition-all"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </td>
+                  <td className={tdBase}>
+                    <input
+                      ref={newRowInputRef}
+                      type="text"
+                      value={newRowSearch}
+                      onChange={e => {
+                        setNewRowSearch(e.target.value);
+                        setDropdownOpen(e.target.value.length >= 2);
+                      }}
+                      onFocus={() => { if (newRowSearch.length >= 2) setDropdownOpen(true); }}
+                      onKeyDown={e => { if (e.key === 'Escape') handleCancelNewRow(); }}
+                      placeholder="Type name or email…"
+                      className={`${inputBase} w-40`}
+                    />
+                  </td>
+                  <td className={`${tdBase} text-gray-500 text-[10px]`} colSpan={29}>Select an employee from the dropdown to add a row</td>
+                </tr>
+              ) : (
+                <tr className="hover:bg-white/[0.02] transition-colors">
+                  <td className={`${tdBase} w-6 text-center`}>
+                    <button
+                      onClick={handleStartNewRow}
+                      title="Add employee"
+                      className="text-gray-600 hover:text-nano-purple transition-colors"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                    </button>
+                  </td>
+                  <td className={`${tdBase} text-gray-600 text-[10px]`} colSpan={30} />
+                </tr>
+              )}
               {/* Totals row */}
-              <tr className="font-bold border-t-2 border-white/10 bg-white/5 text-white">
-                <td className={`${tdBase} font-bold text-white`}>Totals</td>
-                <td className={tdBase}></td>
-                <td className={tdBase}></td>
-                <td className={tdBase}></td>
-                <td className={`${tdBase} text-right`}>{fmt(totals.totalCompLcy)}</td>
-                <td className={tdBase}></td>
-                <td className={`${tdBase} text-right`}>{fmtUsd(totals.totalCompUsd)}</td>
-                <td className={`${tdBase} text-right`}>{fmt(totals.salaryLcy)}</td>
-                <td className={`${tdBase} text-right`}>{fmtUsd(totals.salaryUsd)}</td>
-                <td className={tdBase}></td>
-                <td className={`${tdBase} text-right`}>{fmt(totals.bonusLcy)}</td>
-                <td className={`${tdBase} text-right`}>{fmtUsd(totals.bonusUsd)}</td>
-                <td className={`${tdBase} text-right`}>{fmt(totals.signOnLcy)}</td>
-                <td className={`${tdBase} text-right`}>{fmtUsd(totals.signOnUsd)}</td>
-                <td className={tdBase}></td>
-                <td className={`${tdBase} text-right`}>{fmt(totals.spotLcy)}</td>
-                <td className={`${tdBase} text-right`}>{fmtUsd(totals.spotUsd)}</td>
-                <td className={tdBase}></td>
-                <td className={tdBase}></td>
-                <td className={tdBase}></td>
-                <td className={`${tdBase} text-right`}>{fmtUsd(totals.initialPerfPortion)}</td>
-                <td className={`${tdBase} text-right`}>{fmtUsd(totals.adjustedPerfPortion)}</td>
-                <td className={tdBase}></td>
-                <td className={`${tdBase} text-right`}>{fmtUsd(totals.tenurePortion)}</td>
-                <td className={`${tdBase} text-right`}>{fmtUsd(totals.initialPoolUsd)}</td>
-                <td className={`${tdBase} text-right`}>{fmtUsd(totals.finalPoolUsd)}</td>
-                <td className={`${tdBase} text-right`}>{fmt(totals.finalPoolLcy)}</td>
-                <td className={`${tdBase} text-right`}>{fmt(totals.eoyCompLcy)}</td>
-                <td className={`${tdBase} text-right`}>{fmtUsd(totals.eoyCompUsd)}</td>
-                <td className={tdBase}></td>
-              </tr>
+              {rows.length > 0 && (
+                <tr className="font-bold border-t-2 border-white/10 bg-white/5 text-white">
+                  <td className={tdBase} />
+                  <td className={`${tdBase} font-bold text-white`}>Totals</td>
+                  <td className={tdBase} />
+                  <td className={tdBase} />
+                  <td className={tdBase} />
+                  <td className={`${tdBase} text-right`}>{fmt(totals.totalCompLcy)}</td>
+                  <td className={tdBase} />
+                  <td className={`${tdBase} text-right`}>{fmtUsd(totals.totalCompUsd)}</td>
+                  <td className={`${tdBase} text-right`}>{fmt(totals.salaryLcy)}</td>
+                  <td className={`${tdBase} text-right`}>{fmtUsd(totals.salaryUsd)}</td>
+                  <td className={tdBase} />
+                  <td className={`${tdBase} text-right`}>{fmt(totals.bonusLcy)}</td>
+                  <td className={`${tdBase} text-right`}>{fmtUsd(totals.bonusUsd)}</td>
+                  <td className={`${tdBase} text-right`}>{fmt(totals.signOnLcy)}</td>
+                  <td className={`${tdBase} text-right`}>{fmtUsd(totals.signOnUsd)}</td>
+                  <td className={tdBase} />
+                  <td className={`${tdBase} text-right`}>{fmt(totals.spotLcy)}</td>
+                  <td className={`${tdBase} text-right`}>{fmtUsd(totals.spotUsd)}</td>
+                  <td className={tdBase} />
+                  <td className={tdBase} />
+                  <td className={tdBase} />
+                  <td className={`${tdBase} text-right`}>{fmtUsd(totals.initialPerfPortion)}</td>
+                  <td className={`${tdBase} text-right`}>{fmtUsd(totals.adjustedPerfPortion)}</td>
+                  <td className={tdBase} />
+                  <td className={`${tdBase} text-right`}>{fmtUsd(totals.tenurePortion)}</td>
+                  <td className={`${tdBase} text-right`}>{fmtUsd(totals.initialPoolUsd)}</td>
+                  <td className={`${tdBase} text-right`}>{fmtUsd(totals.finalPoolUsd)}</td>
+                  <td className={`${tdBase} text-right`}>{fmt(totals.finalPoolLcy)}</td>
+                  <td className={`${tdBase} text-right`}>{fmt(totals.eoyCompLcy)}</td>
+                  <td className={`${tdBase} text-right`}>{fmtUsd(totals.eoyCompUsd)}</td>
+                  <td className={tdBase} />
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
+
         <p className="text-[10px] text-gray-400 px-3 py-1.5 bg-[#0d1117]">
-          *Excludes Vishal's bonus (not eligible for bonus pool)
+          *Excludes contractors and ineligible employees from pool calculations
         </p>
       </div>
+
+      {/* Dropdown rendered with fixed position — outside the overflow container */}
+      {dropdownOpen && filteredTsUsers.length > 0 && (
+        <div
+          ref={dropdownRef}
+          className="fixed z-[100] w-72 max-h-48 overflow-y-auto bg-[#0d1117] border border-white/10 rounded-lg shadow-2xl"
+          style={{ top: dropdownPos.top, left: dropdownPos.left }}
+        >
+          {filteredTsUsers.map(u => (
+            <button
+              key={u.id}
+              onMouseDown={e => e.preventDefault()}
+              onClick={() => handleSelectUser(u)}
+              className="w-full text-left px-3 py-2 text-xs text-gray-300 hover:bg-nano-purple/20 hover:text-white transition-colors flex items-center justify-between"
+            >
+              <span className="font-medium">{u.name}</span>
+              <span className="text-[10px] text-gray-500 ml-2">{u.email}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {dropdownOpen && newRowSearch.length >= 2 && filteredTsUsers.length === 0 && (
+        <div
+          ref={dropdownRef}
+          className="fixed z-[100] w-72 bg-[#0d1117] border border-white/10 rounded-lg shadow-2xl px-3 py-3"
+          style={{ top: dropdownPos.top, left: dropdownPos.left }}
+        >
+          <p className="text-[10px] text-gray-500">No matching users</p>
+        </div>
+      )}
 
       {/* Configuration Blocks */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
