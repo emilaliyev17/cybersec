@@ -10,10 +10,11 @@ const tsmanDbConfig = {
   max: 3,
 };
 
-if (process.env.DB_HOST && process.env.DB_HOST.startsWith('/cloudsql/')) {
-  tsmanDbConfig.host = process.env.DB_HOST;
+const tsmanHost = process.env.TSMAN_DB_HOST || process.env.DB_HOST || 'localhost';
+if (tsmanHost.startsWith('/cloudsql/')) {
+  tsmanDbConfig.host = tsmanHost;
 } else {
-  tsmanDbConfig.host = process.env.TSMAN_DB_HOST || process.env.DB_HOST || 'localhost';
+  tsmanDbConfig.host = tsmanHost;
   tsmanDbConfig.port = parseInt(process.env.TSMAN_DB_PORT || '5432');
 }
 
