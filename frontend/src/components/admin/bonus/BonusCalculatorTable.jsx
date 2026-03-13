@@ -66,8 +66,9 @@ function tenureYears(joinDate) {
 
 function lookupGuidancePct(guidanceRanges, rating, targetRange, milestoneSeq) {
   if (!rating || !targetRange || rating < 3) return 0;
+  const ratingInt = Math.round(rating);
   const entry = guidanceRanges.find(
-    g => g.rating === rating && g.target_range === targetRange
+    g => g.rating === ratingInt && g.target_range === targetRange
   );
   if (!entry) return 0;
   if (milestoneSeq === 2) return parseFloat(entry.milestone2_pct) || 0;
@@ -281,7 +282,7 @@ export default function BonusCalculatorTable() {
       const totalCompLcy = manualTotalCompLcy || (salaryLcy + bonusLcy + signOnLcy);
       const totalCompUsd = fxToUsd(totalCompLcy, currency, fxRates);
 
-      const rating = emp.rating ? parseInt(emp.rating) : null;
+      const rating = emp.rating != null ? parseFloat(emp.rating) : null;
       const targetRange = emp.target_range;
       const perfContribPct = lookupGuidancePct(guidanceRanges, rating, targetRange, milestoneSeq);
 
@@ -599,14 +600,16 @@ export default function BonusCalculatorTable() {
                     <td className={`${tdBase} ${calcCell} text-right`}>{fmtUsd(r.spotUsd)}</td>
                     {/* Pickup Bonus */}
                     <td className={tdBase}>
-                      <select
-                        value={r.rating || ''}
-                        onChange={e => updateEmployee(r.id, 'rating', e.target.value ? parseInt(e.target.value) : null)}
-                        className={`${inputBase} w-12`}
-                      >
-                        <option value="" className="bg-[#1E293B] text-white">-</option>
-                        {[1,2,3,4,5].map(v => <option key={v} value={v} className="bg-[#1E293B] text-white">{v}</option>)}
-                      </select>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max="5"
+                        value={r.rating != null ? parseFloat(r.rating).toFixed(2) : ''}
+                        onChange={e => updateEmployee(r.id, 'rating', e.target.value ? parseFloat(e.target.value) : null)}
+                        placeholder="-"
+                        className={`${inputBase} w-14 text-center`}
+                      />
                     </td>
                     <td className={tdBase}>
                       <select
