@@ -353,6 +353,56 @@ router.put('/config/:id/weights', async (req, res) => {
 });
 
 // ============================================
+// PUT /api/bonus/milestone/:id
+// Update a milestone's profit_share_pct
+// ============================================
+router.put('/milestone/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { profit_share_pct } = req.body;
+
+    const result = await pool.query(`
+      UPDATE bonus_milestones SET profit_share_pct = $1 WHERE id = $2 RETURNING *
+    `, [profit_share_pct, id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Milestone not found' });
+    }
+    res.json({ milestone: result.rows[0] });
+  } catch (error) {
+    console.error('Update milestone error:', error);
+    res.status(500).json({ error: 'Server error updating milestone' });
+  }
+});
+
+// ============================================
+// PUT /api/bonus/guidance-range/:id
+// Update a guidance range's milestone percentages
+// ============================================
+router.put('/guidance-range/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { milestone2_pct, milestone3_pct, milestone4_pct } = req.body;
+
+    const result = await pool.query(`
+      UPDATE bonus_guidance_ranges SET
+        milestone2_pct = COALESCE($1, milestone2_pct),
+        milestone3_pct = COALESCE($2, milestone3_pct),
+        milestone4_pct = COALESCE($3, milestone4_pct)
+      WHERE id = $4 RETURNING *
+    `, [milestone2_pct, milestone3_pct, milestone4_pct, id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Guidance range not found' });
+    }
+    res.json({ guidanceRange: result.rows[0] });
+  } catch (error) {
+    console.error('Update guidance range error:', error);
+    res.status(500).json({ error: 'Server error updating guidance range' });
+  }
+});
+
+// ============================================
 // GET /api/bonus/config/:id/milestones
 // ============================================
 router.get('/config/:id/milestones', async (req, res) => {

@@ -243,6 +243,30 @@ export default function BonusCalculatorTable() {
     }
   }, [data]);
 
+  const updateMilestonePct = useCallback(async (milestoneId, newPct) => {
+    try {
+      await axios.put(apiUrl(`/api/bonus/milestone/${milestoneId}`), { profit_share_pct: newPct });
+      setData(prev => ({
+        ...prev,
+        milestones: prev.milestones.map(m => m.id === milestoneId ? { ...m, profit_share_pct: newPct } : m),
+      }));
+    } catch (err) {
+      console.error('Failed to update milestone:', err);
+    }
+  }, []);
+
+  const updateGuidanceRange = useCallback(async (rangeId, field, value) => {
+    setData(prev => ({
+      ...prev,
+      guidanceRanges: prev.guidanceRanges.map(g => g.id === rangeId ? { ...g, [field]: value } : g),
+    }));
+    try {
+      await axios.put(apiUrl(`/api/bonus/guidance-range/${rangeId}`), { [field]: value });
+    } catch (err) {
+      console.error('Failed to update guidance range:', err);
+    }
+  }, []);
+
   const updateWeights = useCallback(async (perfWeight, tenureWeight) => {
     try {
       await axios.put(apiUrl(`/api/bonus/config/${data.config.id}/weights`), {
@@ -783,7 +807,18 @@ export default function BonusCalculatorTable() {
                     <td className="px-3 py-1.5 border-t border-white/5">{m.sequence}</td>
                     <td className="px-3 py-1.5 border-t border-white/5 text-right">{fmtUsd(parseInt(m.target_revenue))}</td>
                     <td className="px-3 py-1.5 border-t border-white/5 text-right">{fmtPct(parseFloat(m.profit_share_pct), 0)}</td>
-                    <td className="px-3 py-1.5 border-t border-white/5 text-right">{fmtUsd(m.profitSharePool)}</td>
+                    <td className="px-3 py-1.5 border-t border-white/5 text-right">
+                      <input
+                        type="number"
+                        value={Math.round(m.profitSharePool)}
+                        onChange={e => {
+                          const newPool = parseFloat(e.target.value) || 0;
+                          const newPct = bonusAllocation > 0 ? newPool / bonusAllocation : 0;
+                          updateMilestonePct(m.id, newPct);
+                        }}
+                        className="bg-white/5 border border-white/10 rounded px-2 py-0.5 w-24 text-right text-xs text-white focus:ring-1 focus:ring-nano-blue/50 focus:outline-none"
+                      />
+                    </td>
                   </tr>
                 );
               })}
@@ -873,15 +908,17 @@ export default function BonusCalculatorTable() {
                 <tr key={`${g.rating}_${g.target_range}`} className="hover:bg-white/5">
                   <td className="px-3 py-1.5 border-t border-white/5">{g.rating}</td>
                   <td className="px-3 py-1.5 border-t border-white/5">{g.target_range}</td>
-                  <td className="px-3 py-1.5 border-t border-white/5 text-right">
-                    {fmtPct(parseFloat(g.milestone2_pct))}
-                  </td>
-                  <td className="px-3 py-1.5 border-t border-white/5 text-right">
-                    {fmtPct(parseFloat(g.milestone3_pct))}
-                  </td>
-                  <td className="px-3 py-1.5 border-t border-white/5 text-right">
-                    {fmtPct(parseFloat(g.milestone4_pct))}
-                  </td>
+                  {['milestone2_pct', 'milestone3_pct', 'milestone4_pct'].map(field => (
+                    <td key={field} className="px-3 py-1.5 border-t border-white/5 text-right">
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={((parseFloat(g[field]) || 0) * 100).toFixed(2)}
+                        onChange={e => updateGuidanceRange(g.id, field, (parseFloat(e.target.value) || 0) / 100)}
+                        className="bg-white/5 border border-white/10 rounded px-2 py-0.5 w-16 text-right text-xs text-white focus:ring-1 focus:ring-nano-blue/50 focus:outline-none"
+                      />
+                    </td>
+                  ))}
                 </tr>
               ))}
             </tbody>
