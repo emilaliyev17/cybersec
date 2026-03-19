@@ -292,6 +292,35 @@ export default function UserManagement() {
 
                   {/* Actions */}
                   <div className="space-y-2">
+                    {userDetails.bio && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            const response = await axios.get(
+                              apiUrl(`/api/admin/users/${userDetails.user.id}/bio/export`),
+                              { responseType: 'blob' }
+                            );
+                            const url = window.URL.createObjectURL(new Blob([response.data]));
+                            const link = document.createElement('a');
+                            link.href = url;
+                            link.setAttribute('download', `Bio_${userDetails.user.name.replace(/\s+/g, '_')}.pdf`);
+                            document.body.appendChild(link);
+                            link.click();
+                            link.remove();
+                            window.URL.revokeObjectURL(url);
+                          } catch (error) {
+                            console.error('PDF export failed:', error);
+                            alert('Failed to export PDF. Please try again.');
+                          }
+                        }}
+                        className="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-xl bg-nano-purple/20 text-nano-purple hover:bg-nano-purple/30 transition-colors text-sm font-medium"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Export Bio PDF
+                      </button>
+                    )}
                     <button
                       onClick={() => handleResetProgress(userDetails.user.id)}
                       className="w-full py-2 px-4 rounded-xl bg-banano-yellow/20 text-banano-yellow hover:bg-banano-yellow/30 transition-colors text-sm font-medium"

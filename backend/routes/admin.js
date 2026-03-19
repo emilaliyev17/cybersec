@@ -1,12 +1,47 @@
 const express = require('express');
 const pool = require('../config/db');
 const { authMiddleware, adminMiddleware } = require('../middleware/auth');
+const { generateBioPdf } = require('../services/pdfService');
 
 const router = express.Router();
 
 // All routes require admin role
 router.use(authMiddleware);
 router.use(adminMiddleware);
+
+// ============================================
+// DASHBOARD STATS
+// ============================================
+// ... (lines 15-473 remain same, but I'll add the new endpoint at the end)
+
+// GET /api/admin/users/:id/bio/export - Export user bio to PDF
+router.get('/users/:id/bio/export', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // Get user and bio data
+    const userResult = await pool.query('SELECT name, email FROM users WHERE id = $1', [id]);
+    const bioResult = await pool.query('SELECT * FROM user_bios WHERE user_id = $1', [id]);
+
+    if (userResult.rows.length === 0 || bioResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User or Bio not found' });
+    }
+
+    const pdfBuffer = await generateBioPdf({
+      user: userResult.rows[0],
+      bio: bioResult.rows[0]
+    });
+
+    res.contentType('application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=Bio_${userResult.rows[0].name.replace(/\s+/g, '_')}.pdf`);
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error('PDF export error:', error);
+    res.status(500).json({ error: 'Failed to generate PDF' });
+  }
+});
+
+module.exports = router;
 
 // ============================================
 // DASHBOARD STATS
@@ -114,8 +149,14 @@ router.get('/users/:id', async (req, res) => {
       ORDER BY attempt_date DESC
     `, [id]);
 
+    const bioResult = await pool.query(
+      'SELECT * FROM user_bios WHERE user_id = $1',
+      [id]
+    );
+
     res.json({
       user: userResult.rows[0],
+      bio: bioResult.rows[0] || null,
       progress: progressResult.rows,
       quizAttempts: quizResult.rows
     });
