@@ -468,8 +468,9 @@ export default function BonusCalculatorTable() {
             <thead>
               {/* Section headers row */}
               <tr>
-                <th className={`${thBase} bg-white/5`} />
-                <th colSpan={4} className={`${thBase} bg-white/5 text-gray-300 text-center`}>Employee</th>
+                <th className={`${thBase} bg-[#0d1117] sticky left-0 z-20`} />
+                <th className={`${thBase} bg-[#0d1117] sticky left-6 z-20 text-gray-300`} />
+                <th colSpan={3} className={`${thBase} bg-white/5 text-gray-300 text-center`}>Employee</th>
                 <th colSpan={10} className={`${thBase} bg-nano-blue/20 text-nano-blue text-center`}>Beginning of Year Compensation</th>
                 <th colSpan={3} className={`${thBase} bg-banano-yellow/15 text-banano-yellow text-center`}>Midyear / Spot Bonus</th>
                 <th colSpan={10} className={`${thBase} bg-nano-purple/20 text-nano-purple text-center`}>Pickup Bonus Pool</th>
@@ -478,9 +479,9 @@ export default function BonusCalculatorTable() {
               {/* Column headers row */}
               <tr>
                 {/* Delete action */}
-                <th className={`${thBase} bg-white/5 w-6`} />
+                <th className={`${thBase} bg-[#0d1117] sticky left-0 z-20 w-6`} />
                 {/* Employee */}
-                <th className={`${thBase} bg-white/5`}>Resource</th>
+                <th className={`${thBase} bg-[#0d1117] sticky left-6 z-20 min-w-[140px]`}>Resource</th>
                 <th className={`${thBase} bg-white/5`}>Title</th>
                 <th className={`${thBase} bg-white/5`}>Join Date</th>
                 <th className={`${thBase} bg-white/5`}>Tenure (Yrs)</th>
@@ -523,7 +524,7 @@ export default function BonusCalculatorTable() {
                 return (
                   <tr key={r.id} className={`${rowCls} hover:bg-white/5 transition-colors group`}>
                     {/* Delete button */}
-                    <td className={`${tdBase} w-6 text-center`}>
+                    <td className={`${tdBase} w-6 text-center bg-[#0d1117] sticky left-0 z-10`}>
                       <button
                         onClick={() => handleDeleteEmployee(r.id)}
                         title="Remove row"
@@ -535,7 +536,7 @@ export default function BonusCalculatorTable() {
                       </button>
                     </td>
                     {/* Employee */}
-                    <td className={`${tdBase} font-medium text-white`}>{r.resource_name}</td>
+                    <td className={`${tdBase} font-medium text-white bg-[#0d1117] sticky left-6 z-10 min-w-[140px]`}>{r.resource_name}</td>
                     <td className={tdBase}>{r.title || '-'}</td>
                     <td className={tdBase}>
                       <input
@@ -663,7 +664,7 @@ export default function BonusCalculatorTable() {
               {/* Inline add row */}
               {newRowActive ? (
                 <tr className="bg-nano-purple/5">
-                  <td className={`${tdBase} w-6 text-center`}>
+                  <td className={`${tdBase} w-6 text-center bg-[#0d1117] sticky left-0 z-10`}>
                     <button
                       onClick={handleCancelNewRow}
                       title="Cancel"
@@ -674,7 +675,7 @@ export default function BonusCalculatorTable() {
                       </svg>
                     </button>
                   </td>
-                  <td className={tdBase}>
+                  <td className={`${tdBase} bg-[#0d1117] sticky left-6 z-10`}>
                     <input
                       ref={newRowInputRef}
                       type="text"
@@ -693,7 +694,7 @@ export default function BonusCalculatorTable() {
                 </tr>
               ) : (
                 <tr className="hover:bg-white/[0.02] transition-colors">
-                  <td className={`${tdBase} w-6 text-center`}>
+                  <td className={`${tdBase} w-6 text-center bg-[#0d1117] sticky left-0 z-10`}>
                     <button
                       onClick={handleStartNewRow}
                       title="Add employee"
@@ -704,14 +705,14 @@ export default function BonusCalculatorTable() {
                       </svg>
                     </button>
                   </td>
-                  <td className={`${tdBase} text-gray-600 text-[10px]`} colSpan={30} />
+                  <td className={`${tdBase} text-gray-600 text-[10px] bg-[#0d1117] sticky left-6 z-10`} colSpan={30} />
                 </tr>
               )}
               {/* Totals row */}
               {rows.length > 0 && (
                 <tr className="font-bold border-t-2 border-white/10 bg-white/5 text-white">
-                  <td className={tdBase} />
-                  <td className={`${tdBase} font-bold text-white`}>Totals</td>
+                  <td className={`${tdBase} bg-[#0d1117] sticky left-0 z-10`} />
+                  <td className={`${tdBase} font-bold text-white bg-[#0d1117] sticky left-6 z-10`}>Totals</td>
                   <td className={tdBase} />
                   <td className={tdBase} />
                   <td className={tdBase} />

@@ -232,33 +232,40 @@ router.post('/employee', async (req, res) => {
 router.put('/employee/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const {
-      lcy_currency, salary_lcy, bonus_pct, sign_on_bonus_lcy,
-      eligible, spot_bonus_lcy, rating, target_range, is_active,
-      hire_date_override, total_comp_lcy
-    } = req.body;
+    const body = req.body;
 
-    const result = await pool.query(`
-      UPDATE bonus_employee_data SET
-        lcy_currency          = COALESCE($1, lcy_currency),
-        salary_lcy            = COALESCE($2, salary_lcy),
-        bonus_pct             = COALESCE($3, bonus_pct),
-        sign_on_bonus_lcy     = COALESCE($4, sign_on_bonus_lcy),
-        eligible              = COALESCE($5, eligible),
-        spot_bonus_lcy        = COALESCE($6, spot_bonus_lcy),
-        rating                = $7,
-        target_range          = $8,
-        is_active             = COALESCE($9, is_active),
-        hire_date_override    = COALESCE($10, hire_date_override),
-        total_comp_lcy        = COALESCE($11, total_comp_lcy),
-        updated_at            = NOW()
-      WHERE id = $12
-      RETURNING *
-    `, [
-      lcy_currency, salary_lcy, bonus_pct, sign_on_bonus_lcy,
-      eligible, spot_bonus_lcy, rating, target_range, is_active,
-      hire_date_override, total_comp_lcy, id
-    ]);
+    // Build dynamic UPDATE to only touch fields that were explicitly sent
+    const fieldMap = {
+      lcy_currency: 'lcy_currency',
+      salary_lcy: 'salary_lcy',
+      bonus_pct: 'bonus_pct',
+      sign_on_bonus_lcy: 'sign_on_bonus_lcy',
+      eligible: 'eligible',
+      spot_bonus_lcy: 'spot_bonus_lcy',
+      rating: 'rating',
+      target_range: 'target_range',
+      is_active: 'is_active',
+      hire_date_override: 'hire_date_override',
+      total_comp_lcy: 'total_comp_lcy',
+    };
+
+    const setClauses = ['updated_at = NOW()'];
+    const values = [];
+    let paramIdx = 1;
+
+    for (const [bodyKey, column] of Object.entries(fieldMap)) {
+      if (bodyKey in body) {
+        setClauses.push(`${column} = $${paramIdx}`);
+        values.push(body[bodyKey]);
+        paramIdx++;
+      }
+    }
+
+    values.push(id);
+    const result = await pool.query(
+      `UPDATE bonus_employee_data SET ${setClauses.join(', ')} WHERE id = $${paramIdx} RETURNING *`,
+      values
+    );
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Employee record not found' });
