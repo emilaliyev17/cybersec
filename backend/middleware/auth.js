@@ -1,8 +1,9 @@
 const jwt = require('jsonwebtoken');
+const pool = require('../config/db');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
-const authMiddleware = (req, res, next) => {
+const authMiddleware = async (req, res, next) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -13,6 +14,11 @@ const authMiddleware = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
+    // Fetch current role from DB so role changes take effect immediately
+    const result = await pool.query('SELECT role FROM users WHERE id = $1', [decoded.id]);
+    if (result.rows.length > 0) {
+      decoded.role = result.rows[0].role;
+    }
     req.user = decoded;
     next();
   } catch (error) {
