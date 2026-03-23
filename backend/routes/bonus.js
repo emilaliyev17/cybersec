@@ -444,4 +444,85 @@ router.get('/config/:id/guidance-ranges', async (req, res) => {
   }
 });
 
+// ============================================
+// GET /api/bonus/calculator/:programId/export-pdf
+// Generate and download PDF report
+// ============================================
+router.get('/calculator/:programId/export-pdf', async (req, res) => {
+  try {
+    const { programId } = req.params;
+
+    const configResult = await pool.query(
+      `SELECT id, program_name, year, active_milestone_sequence,
+              perf_weight, tenure_weight, base_allocation, actual_revenue,
+              status, created_at, updated_at
+       FROM bonus_config WHERE id = $1`,
+      [programId]
+    );
+    if (configResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Config not found' });
+    }
+
+    const [milestonesResult, guidanceResult, employeesResult] = await Promise.all([
+      pool.query(
+        `SELECT id, config_id, sequence, target_revenue, profit_share_pct
+         FROM bonus_milestones WHERE config_id = $1 ORDER BY sequence`,
+        [programId]
+      ),
+      pool.query(
+        `SELECT id, config_id, rating, target_range,
+                milestone2_pct, milestone3_pct, milestone4_pct
+         FROM bonus_guidance_ranges WHERE config_id = $1
+         ORDER BY rating, target_range`,
+        [programId]
+      ),
+      pool.query(
+        `SELECT
+          bed.id, bed.config_id, bed.user_id, bed.tsman_user_id,
+          bed.sort_order, bed.lcy_currency, bed.salary_lcy, bed.bonus_pct,
+          bed.sign_on_bonus_lcy, bed.eligible, bed.spot_bonus_lcy,
+          bed.target_range, bed.is_active, bed.total_comp_lcy,
+          bed.resource_name_override, bed.title_override,
+          bed.hire_date_override, bed.rating,
+          COALESCE(bed.resource_name_override, u.name) AS resource_name,
+          COALESCE(bed.hire_date_override, u.hire_date) AS join_date,
+          COALESCE(bed.title_override, ub.job_title) AS title
+        FROM bonus_employee_data bed
+        LEFT JOIN users u ON u.id = bed.user_id
+        LEFT JOIN user_bios ub ON ub.user_id = bed.user_id
+        WHERE bed.config_id = $1
+        ORDER BY bed.sort_order`,
+        [programId]
+      ),
+    ]);
+
+    const fxRates = await fetchFxRates();
+
+    const { computeBonusData } = require('../services/bonusCalculations');
+    const { generateBonusPdf } = require('../services/bonusPdfService');
+
+    const computed = computeBonusData({
+      config: configResult.rows[0],
+      milestones: milestonesResult.rows,
+      guidanceRanges: guidanceResult.rows,
+      employees: employeesResult.rows,
+      fxRates,
+    });
+
+    const pdfBuffer = await generateBonusPdf({
+      config: configResult.rows[0],
+      computed,
+      guidanceRanges: guidanceResult.rows,
+    });
+
+    const fileName = `Bonus_Calculator_${configResult.rows[0].program_name || 'Report'}_${configResult.rows[0].year || ''}.pdf`;
+    res.contentType('application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error('Export bonus PDF error:', error);
+    res.status(500).json({ error: 'Failed to generate PDF' });
+  }
+});
+
 module.exports = router;

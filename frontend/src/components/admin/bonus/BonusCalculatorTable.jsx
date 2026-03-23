@@ -88,6 +88,7 @@ export default function BonusCalculatorTable() {
   const [newRowActive, setNewRowActive] = useState(false);
   const [newRowSearch, setNewRowSearch] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const newRowInputRef = useRef(null);
   const dropdownRef = useRef(null);
   const saveTimers = useRef({});
@@ -172,6 +173,25 @@ export default function BonusCalculatorTable() {
       }));
     } catch (err) {
       console.error('Failed to add employee:', err);
+    }
+  }, []);
+
+  const handleExportPdf = useCallback(async () => {
+    setExporting(true);
+    try {
+      const res = await axios.get(apiUrl(`/api/bonus/calculator/${CONFIG_ID}/export-pdf`), { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Bonus_Calculator_Report.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('PDF export failed:', err);
+    } finally {
+      setExporting(false);
     }
   }, []);
 
@@ -465,6 +485,23 @@ export default function BonusCalculatorTable() {
 
   return (
     <div className="space-y-6">
+      {/* Export button */}
+      <div className="flex justify-end">
+        <button
+          onClick={handleExportPdf}
+          disabled={exporting}
+          className="btn-neon-secondary flex items-center gap-2 text-sm py-2 px-4"
+        >
+          {exporting ? (
+            <span className="animate-spin h-4 w-4 border-2 border-white/30 border-t-white rounded-full" />
+          ) : (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          )}
+          Export PDF
+        </button>
+      </div>
       {/* Main Table */}
       <div className="glass-card overflow-hidden" style={{background: '#111827', backdropFilter: 'none', WebkitBackdropFilter: 'none'}}>
         <div className="overflow-x-auto">
