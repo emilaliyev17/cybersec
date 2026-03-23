@@ -568,7 +568,7 @@ export default function BonusCalculatorTable() {
                 <th colSpan={5} className={`${thBase} bg-white/5 text-gray-300 text-center`}>Employee</th>
                 <th colSpan={10} className={`${thBase} bg-nano-blue/20 text-nano-blue text-center`}>Beginning of Year Compensation</th>
                 <th colSpan={3} className={`${thBase} bg-banano-yellow/15 text-banano-yellow text-center`}>Midyear / Spot Bonus</th>
-                <th colSpan={10} className={`${thBase} bg-nano-purple/20 text-nano-purple text-center`}>Pickup Bonus Pool</th>
+                <th colSpan={11} className={`${thBase} bg-nano-purple/20 text-nano-purple text-center`}>Pickup Bonus Pool</th>
                 <th colSpan={3} className={`${thBase} bg-rose-500/15 text-rose-400 text-center`}>End of Year Comp</th>
               </tr>
               {/* Column headers row */}
@@ -606,6 +606,7 @@ export default function BonusCalculatorTable() {
                 <th className={`${thBase} bg-nano-purple/5`}>Init Pool (USD)</th>
                 <th className={`${thBase} bg-nano-purple/5`}>Final Pool (USD)</th>
                 <th className={`${thBase} bg-nano-purple/5`}>Final Pool (LCY)</th>
+                <th className={`${thBase} bg-nano-purple/5`}>Pool % Sal</th>
                 {/* EOY */}
                 <th className={`${thBase} bg-rose-500/5`}>Total Comp (LCY)</th>
                 <th className={`${thBase} bg-rose-500/5`}>Total Comp (USD)</th>
@@ -772,6 +773,9 @@ export default function BonusCalculatorTable() {
                         className={`${inputBase} w-20 text-right`}
                       />
                     </td>
+                    <td className={`${tdBase} ${calcCell} text-right ${r.salaryLcy > 0 && r.finalPoolLcy / r.salaryLcy > 0.05 ? 'text-red-400' : ''}`}>
+                      {r.salaryLcy > 0 ? fmtPct(r.finalPoolLcy / r.salaryLcy) : '-'}
+                    </td>
                     {/* EOY */}
                     <td className={`${tdBase} ${calcCell} text-right`}>{fmt(r.eoyCompLcy)}</td>
                     <td className={`${tdBase} ${calcCell} text-right`}>{fmtUsd(r.eoyCompUsd)}</td>
@@ -857,6 +861,7 @@ export default function BonusCalculatorTable() {
                   <td className={`${tdBase} text-right`}>{fmtUsd(totals.initialPoolUsd)}</td>
                   <td className={`${tdBase} text-right`}>{fmtUsd(totals.finalPoolUsd)}</td>
                   <td className={`${tdBase} text-right`}>{fmt(totals.finalPoolLcy)}</td>
+                  <td className={tdBase} />
                   <td className={`${tdBase} text-right`}>{fmt(totals.eoyCompLcy)}</td>
                   <td className={`${tdBase} text-right`}>{fmtUsd(totals.eoyCompUsd)}</td>
                   <td className={tdBase} />

@@ -37,6 +37,7 @@ async function generateBonusPdf({ config, computed, guidanceRanges }) {
       <td class="c-pool al-r">${fmtUsd(r.initialPoolUsd)}</td>
       <td class="c-pool al-r" ${r.capped ? 'style="color:#f87171"' : ''}>${fmtUsd(r.finalPoolUsd)}${r.capped ? '*' : ''}</td>
       <td class="c-pool al-r" ${r.capped ? 'style="color:#f87171"' : ''}>${fmt(r.finalPoolLcy)}</td>
+      <td class="c-pool al-r" ${r.salaryLcy > 0 && r.finalPoolLcy / r.salaryLcy > 0.05 ? 'style="color:#f87171"' : ''}>${r.salaryLcy > 0 ? fmtPct(r.finalPoolLcy / r.salaryLcy) : '-'}</td>
       <td class="c-eoy al-r">${fmt(r.eoyCompLcy)}</td>
       <td class="c-eoy al-r">${fmtUsd(r.eoyCompUsd)}</td>
       <td class="c-eoy al-r">${fmtPct(r.eoyBonusPct)}</td>
@@ -176,7 +177,7 @@ async function generateBonusPdf({ config, computed, guidanceRanges }) {
         <th colspan="4" class="sh-emp al-c">Employee</th>
         <th colspan="10" class="sh-boy al-c">Beginning of Year Compensation</th>
         <th colspan="3" class="sh-mid al-c">Midyear / Spot</th>
-        <th colspan="10" class="sh-pool al-c">Pickup Bonus Pool</th>
+        <th colspan="11" class="sh-pool al-c">Pickup Bonus Pool</th>
         <th colspan="3" class="sh-eoy al-c">End of Year Comp</th>
       </tr>
       <tr>
@@ -207,6 +208,7 @@ async function generateBonusPdf({ config, computed, guidanceRanges }) {
         <th class="ch-pool al-r">Init Pool</th>
         <th class="ch-pool al-r">Final Pool</th>
         <th class="ch-pool al-r">Pool (LCY)</th>
+        <th class="ch-pool al-r">% Sal</th>
         <th class="ch-eoy al-r">Comp (LCY)</th>
         <th class="ch-eoy al-r">Comp (USD)</th>
         <th class="ch-eoy al-r">Bonus %</th>
@@ -241,6 +243,7 @@ async function generateBonusPdf({ config, computed, guidanceRanges }) {
         <td class="al-r">${fmtUsd(totals.initialPoolUsd)}</td>
         <td class="al-r">${fmtUsd(totals.finalPoolUsd)}</td>
         <td class="al-r">${fmt(totals.finalPoolLcy)}</td>
+        <td></td>
         <td class="al-r">${fmt(totals.eoyCompLcy)}</td>
         <td class="al-r">${fmtUsd(totals.eoyCompUsd)}</td>
         <td></td>
