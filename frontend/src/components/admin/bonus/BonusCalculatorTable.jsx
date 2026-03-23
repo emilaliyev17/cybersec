@@ -457,20 +457,22 @@ export default function BonusCalculatorTable() {
   const thBase = 'px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide border border-white/5 whitespace-nowrap text-gray-400';
   const tdBase = 'px-2 py-1 text-xs border border-white/5 whitespace-nowrap';
   const inputBase = 'no-spinner border border-white/10 rounded px-1.5 py-0.5 w-full bg-white/5 text-xs text-white focus:ring-1 focus:ring-nano-blue/50 focus:border-nano-blue/50 focus:outline-none';
+  const stickyBg = { backgroundColor: '#111827' };
+  const stickyBgHeader = { backgroundColor: '#1a2332' };
+  const stickyShadow = { backgroundColor: '#111827', boxShadow: '2px 0 4px rgba(0,0,0,0.3)' };
+  const stickyShadowHeader = { backgroundColor: '#1a2332', boxShadow: '2px 0 4px rgba(0,0,0,0.3)' };
   const calcCell = 'bg-white/[0.02] text-gray-400';
 
   return (
     <div className="space-y-6">
       {/* Main Table */}
-      <div className="glass-card overflow-hidden">
+      <div className="glass-card overflow-hidden" style={{background: '#111827', backdropFilter: 'none', WebkitBackdropFilter: 'none'}}>
         <div className="overflow-x-auto">
           <table className="w-full text-xs whitespace-nowrap text-gray-300 border-collapse">
             <thead>
               {/* Section headers row */}
               <tr>
-                <th className={`${thBase} bg-[#0d1117] sticky left-0 z-20`} />
-                <th className={`${thBase} bg-[#0d1117] sticky left-6 z-20 text-gray-300`} />
-                <th colSpan={3} className={`${thBase} bg-white/5 text-gray-300 text-center`}>Employee</th>
+                <th colSpan={5} className={`${thBase} bg-white/5 text-gray-300 text-center`}>Employee</th>
                 <th colSpan={10} className={`${thBase} bg-nano-blue/20 text-nano-blue text-center`}>Beginning of Year Compensation</th>
                 <th colSpan={3} className={`${thBase} bg-banano-yellow/15 text-banano-yellow text-center`}>Midyear / Spot Bonus</th>
                 <th colSpan={10} className={`${thBase} bg-nano-purple/20 text-nano-purple text-center`}>Pickup Bonus Pool</th>
@@ -479,9 +481,9 @@ export default function BonusCalculatorTable() {
               {/* Column headers row */}
               <tr>
                 {/* Delete action */}
-                <th className={`${thBase} bg-[#0d1117] sticky left-0 z-20 w-6`} />
+                <th className={`${thBase} sticky left-0 z-20 w-6`} style={stickyBgHeader} />
                 {/* Employee */}
-                <th className={`${thBase} bg-[#0d1117] sticky left-6 z-20 min-w-[140px]`}>Resource</th>
+                <th className={`${thBase} sticky left-6 z-20 min-w-[140px]`} style={stickyShadowHeader}>Resource</th>
                 <th className={`${thBase} bg-white/5`}>Title</th>
                 <th className={`${thBase} bg-white/5`}>Join Date</th>
                 <th className={`${thBase} bg-white/5`}>Tenure (Yrs)</th>
@@ -524,7 +526,7 @@ export default function BonusCalculatorTable() {
                 return (
                   <tr key={r.id} className={`${rowCls} hover:bg-white/5 transition-colors group`}>
                     {/* Delete button */}
-                    <td className={`${tdBase} w-6 text-center bg-[#0d1117] sticky left-0 z-10`}>
+                    <td className={`${tdBase} w-6 text-center sticky left-0 z-10`} style={stickyBg}>
                       <button
                         onClick={() => handleDeleteEmployee(r.id)}
                         title="Remove row"
@@ -536,7 +538,7 @@ export default function BonusCalculatorTable() {
                       </button>
                     </td>
                     {/* Employee */}
-                    <td className={`${tdBase} font-medium text-white bg-[#0d1117] sticky left-6 z-10 min-w-[140px]`}>{r.resource_name}</td>
+                    <td className={`${tdBase} font-medium text-white sticky left-6 z-10 min-w-[140px]`} style={stickyShadow}>{r.resource_name}</td>
                     <td className={tdBase}>{r.title || '-'}</td>
                     <td className={tdBase}>
                       <input
@@ -664,7 +666,7 @@ export default function BonusCalculatorTable() {
               {/* Inline add row */}
               {newRowActive ? (
                 <tr className="bg-nano-purple/5">
-                  <td className={`${tdBase} w-6 text-center bg-[#0d1117] sticky left-0 z-10`}>
+                  <td className={`${tdBase} w-6 text-center sticky left-0 z-10`} style={stickyBg}>
                     <button
                       onClick={handleCancelNewRow}
                       title="Cancel"
@@ -675,7 +677,7 @@ export default function BonusCalculatorTable() {
                       </svg>
                     </button>
                   </td>
-                  <td className={`${tdBase} bg-[#0d1117] sticky left-6 z-10`}>
+                  <td className={`${tdBase} sticky left-6 z-10`} style={stickyShadow}>
                     <input
                       ref={newRowInputRef}
                       type="text"
@@ -694,7 +696,7 @@ export default function BonusCalculatorTable() {
                 </tr>
               ) : (
                 <tr className="hover:bg-white/[0.02] transition-colors">
-                  <td className={`${tdBase} w-6 text-center bg-[#0d1117] sticky left-0 z-10`}>
+                  <td className={`${tdBase} w-6 text-center sticky left-0 z-10`} style={stickyBg}>
                     <button
                       onClick={handleStartNewRow}
                       title="Add employee"
@@ -705,14 +707,14 @@ export default function BonusCalculatorTable() {
                       </svg>
                     </button>
                   </td>
-                  <td className={`${tdBase} text-gray-600 text-[10px] bg-[#0d1117] sticky left-6 z-10`} colSpan={30} />
+                  <td className={`${tdBase} text-gray-600 text-[10px]`} colSpan={30} />
                 </tr>
               )}
               {/* Totals row */}
               {rows.length > 0 && (
                 <tr className="font-bold border-t-2 border-white/10 bg-white/5 text-white">
-                  <td className={`${tdBase} bg-[#0d1117] sticky left-0 z-10`} />
-                  <td className={`${tdBase} font-bold text-white bg-[#0d1117] sticky left-6 z-10`}>Totals</td>
+                  <td className={`${tdBase} sticky left-0 z-10`} style={stickyBgHeader} />
+                  <td className={`${tdBase} font-bold text-white sticky left-6 z-10`} style={stickyShadowHeader}>Totals</td>
                   <td className={tdBase} />
                   <td className={tdBase} />
                   <td className={tdBase} />
@@ -748,7 +750,7 @@ export default function BonusCalculatorTable() {
           </table>
         </div>
 
-        <p className="text-[10px] text-gray-400 px-3 py-1.5 bg-[#0d1117]">
+        <p className="text-[10px] text-gray-400 px-3 py-1.5 bg-gray-900">
           *Excludes contractors and ineligible employees from pool calculations
         </p>
       </div>
@@ -757,7 +759,7 @@ export default function BonusCalculatorTable() {
       {dropdownOpen && filteredTsUsers.length > 0 && (
         <div
           ref={dropdownRef}
-          className="fixed z-[100] w-72 max-h-48 overflow-y-auto bg-[#0d1117] border border-white/10 rounded-lg shadow-2xl"
+          className="fixed z-[100] w-72 max-h-48 overflow-y-auto bg-gray-900 border border-white/10 rounded-lg shadow-2xl"
           style={{ top: dropdownPos.top, left: dropdownPos.left }}
         >
           {filteredTsUsers.map(u => (
@@ -776,7 +778,7 @@ export default function BonusCalculatorTable() {
       {dropdownOpen && newRowSearch.length >= 2 && filteredTsUsers.length === 0 && (
         <div
           ref={dropdownRef}
-          className="fixed z-[100] w-72 bg-[#0d1117] border border-white/10 rounded-lg shadow-2xl px-3 py-3"
+          className="fixed z-[100] w-72 bg-gray-900 border border-white/10 rounded-lg shadow-2xl px-3 py-3"
           style={{ top: dropdownPos.top, left: dropdownPos.left }}
         >
           <p className="text-[10px] text-gray-500">No matching users</p>
