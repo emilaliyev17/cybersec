@@ -35,8 +35,8 @@ async function generateBonusPdf({ config, computed, guidanceRanges }) {
       <td class="c-pool al-r">${fmtPct(r.tenureContribPct)}</td>
       <td class="c-pool al-r">${fmtUsd(r.tenurePortion)}</td>
       <td class="c-pool al-r">${fmtUsd(r.initialPoolUsd)}</td>
-      <td class="c-pool al-r">${fmtUsd(r.finalPoolUsd)}</td>
-      <td class="c-pool al-r">${fmt(r.finalPoolLcy)}</td>
+      <td class="c-pool al-r" ${r.capped ? 'style="color:#f87171"' : ''}>${fmtUsd(r.finalPoolUsd)}${r.capped ? '*' : ''}</td>
+      <td class="c-pool al-r" ${r.capped ? 'style="color:#f87171"' : ''}>${fmt(r.finalPoolLcy)}</td>
       <td class="c-eoy al-r">${fmt(r.eoyCompLcy)}</td>
       <td class="c-eoy al-r">${fmtUsd(r.eoyCompUsd)}</td>
       <td class="c-eoy al-r">${fmtPct(r.eoyBonusPct)}</td>

@@ -93,7 +93,7 @@ router.get('/calculator/:programId', async (req, res) => {
           bed.target_range, bed.is_active, bed.total_comp_lcy,
           bed.resource_name_override, bed.title_override,
           bed.hire_date_override, bed.created_at, bed.updated_at,
-          bed.rating,
+          bed.rating, bed.final_pool_override_usd,
           COALESCE(bed.resource_name_override, u.name) AS resource_name,
           COALESCE(bed.hire_date_override, u.hire_date) AS join_date,
           COALESCE(bed.title_override, ub.job_title) AS title
@@ -247,6 +247,7 @@ router.put('/employee/:id', async (req, res) => {
       is_active: 'is_active',
       hire_date_override: 'hire_date_override',
       total_comp_lcy: 'total_comp_lcy',
+      final_pool_override_usd: 'final_pool_override_usd',
     };
 
     const setClauses = ['updated_at = NOW()'];
@@ -445,6 +446,31 @@ router.get('/config/:id/guidance-ranges', async (req, res) => {
 });
 
 // ============================================
+// PUT /api/bonus/config/:id/seal
+// Toggle sealed status (draft <-> sealed)
+// ============================================
+router.put('/config/:id/seal', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { sealed } = req.body;
+    const newStatus = sealed ? 'sealed' : 'draft';
+
+    const result = await pool.query(
+      `UPDATE bonus_config SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING id, status, updated_at`,
+      [newStatus, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Config not found' });
+    }
+    res.json({ config: result.rows[0] });
+  } catch (error) {
+    console.error('Seal/unseal error:', error);
+    res.status(500).json({ error: 'Server error toggling seal' });
+  }
+});
+
+// ============================================
 // GET /api/bonus/calculator/:programId/export-pdf
 // Generate and download PDF report
 // ============================================
@@ -483,7 +509,7 @@ router.get('/calculator/:programId/export-pdf', async (req, res) => {
           bed.sign_on_bonus_lcy, bed.eligible, bed.spot_bonus_lcy,
           bed.target_range, bed.is_active, bed.total_comp_lcy,
           bed.resource_name_override, bed.title_override,
-          bed.hire_date_override, bed.rating,
+          bed.hire_date_override, bed.rating, bed.final_pool_override_usd,
           COALESCE(bed.resource_name_override, u.name) AS resource_name,
           COALESCE(bed.hire_date_override, u.hire_date) AS join_date,
           COALESCE(bed.title_override, ub.job_title) AS title

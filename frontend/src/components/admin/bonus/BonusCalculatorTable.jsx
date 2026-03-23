@@ -133,6 +133,7 @@ export default function BonusCalculatorTable() {
   }, []);
 
   const updateEmployee = useCallback((empId, field, value) => {
+    if (data?.config?.status === 'sealed') return;
     setData(prev => {
       if (!prev) return prev;
       const employees = prev.employees.map(e => {
@@ -195,6 +196,19 @@ export default function BonusCalculatorTable() {
     }
   }, []);
 
+  const handleToggleSeal = useCallback(async () => {
+    const isSealed = data.config.status === 'sealed';
+    try {
+      await axios.put(apiUrl(`/api/bonus/config/${CONFIG_ID}/seal`), { sealed: !isSealed });
+      setData(prev => ({
+        ...prev,
+        config: { ...prev.config, status: isSealed ? 'draft' : 'sealed' },
+      }));
+    } catch (err) {
+      console.error('Seal/unseal failed:', err);
+    }
+  }, [data]);
+
   const handleStartNewRow = useCallback(() => {
     setNewRowActive(true);
     setNewRowSearch('');
@@ -238,6 +252,7 @@ export default function BonusCalculatorTable() {
   }, [dropdownOpen]);
 
   const handleDeleteEmployee = useCallback(async (empId) => {
+    if (data?.config?.status === 'sealed') return;
     try {
       await axios.delete(apiUrl(`/api/bonus/employee/${empId}`));
       setData(prev => ({
@@ -250,6 +265,7 @@ export default function BonusCalculatorTable() {
   }, []);
 
   const updateMilestone = useCallback(async (newSeq) => {
+    if (data?.config?.status === 'sealed') return;
     try {
       await axios.put(apiUrl(`/api/bonus/config/${data.config.id}`), {
         active_milestone_sequence: newSeq,
@@ -264,6 +280,7 @@ export default function BonusCalculatorTable() {
   }, [data]);
 
   const updateMilestonePct = useCallback(async (milestoneId, newPct) => {
+    if (data?.config?.status === 'sealed') return;
     try {
       await axios.put(apiUrl(`/api/bonus/milestone/${milestoneId}`), { profit_share_pct: newPct });
       setData(prev => ({
@@ -276,6 +293,7 @@ export default function BonusCalculatorTable() {
   }, []);
 
   const updateGuidanceRange = useCallback(async (rangeId, field, value) => {
+    if (data?.config?.status === 'sealed') return;
     setData(prev => ({
       ...prev,
       guidanceRanges: prev.guidanceRanges.map(g => g.id === rangeId ? { ...g, [field]: value } : g),
@@ -288,6 +306,7 @@ export default function BonusCalculatorTable() {
   }, []);
 
   const updateWeights = useCallback(async (perfWeight, tenureWeight) => {
+    if (data?.config?.status === 'sealed') return;
     try {
       await axios.put(apiUrl(`/api/bonus/config/${data.config.id}/weights`), {
         perf_weight: perfWeight,
@@ -392,7 +411,13 @@ export default function BonusCalculatorTable() {
       const tenurePortion = tenureContribPct * tenureAllocation;
 
       const initialPoolUsd = r.initialPerfPortion + tenurePortion;
-      const finalPoolUsd = adjustedPerfPortion + tenurePortion;
+      const salaryCap = r.salaryUsd * 0.05;
+      const uncappedPoolUsd = adjustedPerfPortion + tenurePortion;
+      const hasOverride = r.final_pool_override_usd != null;
+      const finalPoolUsd = hasOverride
+        ? Math.min(parseFloat(r.final_pool_override_usd), salaryCap)
+        : Math.min(uncappedPoolUsd, salaryCap);
+      const capped = (hasOverride ? parseFloat(r.final_pool_override_usd) : uncappedPoolUsd) > salaryCap;
       const finalPoolLcy = usdToLcy(finalPoolUsd, r.currency, fxRates);
 
       const eoyCompUsd = r.salaryUsd + r.bonusUsd + r.spotUsd + finalPoolUsd;
@@ -407,6 +432,8 @@ export default function BonusCalculatorTable() {
         initialPoolUsd,
         finalPoolUsd,
         finalPoolLcy,
+        salaryCap,
+        capped,
         eoyCompUsd,
         eoyCompLcy,
         eoyBonusPct,
@@ -473,10 +500,11 @@ export default function BonusCalculatorTable() {
 
   const { rows, totals, bonusAllocation, milestoneData, milestonePool, perfAllocation, tenureAllocation, budgetPct, adjustment, perfWeight, tenureWeight } = computed;
   const { config, guidanceRanges } = data;
+  const isSealed = config.status === 'sealed';
 
   const thBase = 'px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide border border-white/5 whitespace-nowrap text-gray-400';
   const tdBase = 'px-2 py-1 text-xs border border-white/5 whitespace-nowrap';
-  const inputBase = 'no-spinner border border-white/10 rounded px-1.5 py-0.5 w-full bg-white/5 text-xs text-white focus:ring-1 focus:ring-nano-blue/50 focus:border-nano-blue/50 focus:outline-none';
+  const inputBase = `no-spinner border border-white/10 rounded px-1.5 py-0.5 w-full bg-white/5 text-xs text-white focus:ring-1 focus:ring-nano-blue/50 focus:border-nano-blue/50 focus:outline-none ${isSealed ? 'opacity-60 cursor-not-allowed' : ''}`;
   const stickyBg = { backgroundColor: '#111827' };
   const stickyBgHeader = { backgroundColor: '#1a2332' };
   const stickyShadow = { backgroundColor: '#111827', boxShadow: '2px 0 4px rgba(0,0,0,0.3)' };
@@ -485,22 +513,50 @@ export default function BonusCalculatorTable() {
 
   return (
     <div className="space-y-6">
-      {/* Export button */}
-      <div className="flex justify-end">
-        <button
-          onClick={handleExportPdf}
-          disabled={exporting}
-          className="btn-neon-secondary flex items-center gap-2 text-sm py-2 px-4"
-        >
-          {exporting ? (
-            <span className="animate-spin h-4 w-4 border-2 border-white/30 border-t-white rounded-full" />
-          ) : (
+      {/* Action buttons */}
+      <div className="flex justify-between items-center">
+        {isSealed && (
+          <div className="flex items-center gap-2 text-sm text-green-400 font-semibold">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
-          )}
-          Export PDF
-        </button>
+            Sealed — values are locked
+          </div>
+        )}
+        {!isSealed && <div />}
+        <div className="flex gap-3">
+          <button
+            onClick={handleToggleSeal}
+            className={`flex items-center gap-2 text-sm py-2 px-4 rounded-xl border font-bold transition-all duration-300 ${
+              isSealed
+                ? 'border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20'
+                : 'border-green-500/30 bg-green-500/10 text-green-400 hover:bg-green-500/20'
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {isSealed ? (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              )}
+            </svg>
+            {isSealed ? 'Unseal' : 'Seal'}
+          </button>
+          <button
+            onClick={handleExportPdf}
+            disabled={exporting}
+            className="btn-neon-secondary flex items-center gap-2 text-sm py-2 px-4"
+          >
+            {exporting ? (
+              <span className="animate-spin h-4 w-4 border-2 border-white/30 border-t-white rounded-full" />
+            ) : (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            )}
+            Export PDF
+          </button>
+        </div>
       </div>
       {/* Main Table */}
       <div className="glass-card overflow-hidden" style={{background: '#111827', backdropFilter: 'none', WebkitBackdropFilter: 'none'}}>
@@ -567,6 +623,7 @@ export default function BonusCalculatorTable() {
                       <button
                         onClick={() => handleDeleteEmployee(r.id)}
                         title="Remove row"
+                        disabled={isSealed}
                         className="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 transition-all"
                       >
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -691,8 +748,30 @@ export default function BonusCalculatorTable() {
                     <td className={`${tdBase} ${calcCell} text-right`}>{fmtPct(r.tenureContribPct)}</td>
                     <td className={`${tdBase} ${calcCell} text-right`}>{fmtUsd(r.tenurePortion)}</td>
                     <td className={`${tdBase} ${calcCell} text-right`}>{fmtUsd(r.initialPoolUsd)}</td>
-                    <td className={`${tdBase} ${calcCell} text-right`}>{fmtUsd(r.finalPoolUsd)}</td>
-                    <td className={`${tdBase} ${calcCell} text-right`}>{fmt(r.finalPoolLcy)}</td>
+                    <td className={`${tdBase} text-right ${r.capped ? 'text-red-400' : ''}`}>
+                      <input
+                        type="number"
+                        value={Math.round(r.finalPoolUsd)}
+                        onChange={e => {
+                          const val = parseFloat(e.target.value) || 0;
+                          updateEmployee(r.id, 'final_pool_override_usd', val);
+                        }}
+                        className={`${inputBase} w-20 text-right`}
+                        title={r.capped ? `Capped at 5% of salary (${fmtUsd(r.salaryCap)})` : ''}
+                      />
+                    </td>
+                    <td className={`${tdBase} text-right ${r.capped ? 'text-red-400' : ''}`}>
+                      <input
+                        type="number"
+                        value={Math.round(r.finalPoolLcy)}
+                        onChange={e => {
+                          const lcy = parseFloat(e.target.value) || 0;
+                          const usd = fxToUsd(lcy, r.currency, fxRates);
+                          updateEmployee(r.id, 'final_pool_override_usd', usd);
+                        }}
+                        className={`${inputBase} w-20 text-right`}
+                      />
+                    </td>
                     {/* EOY */}
                     <td className={`${tdBase} ${calcCell} text-right`}>{fmt(r.eoyCompLcy)}</td>
                     <td className={`${tdBase} ${calcCell} text-right`}>{fmtUsd(r.eoyCompUsd)}</td>

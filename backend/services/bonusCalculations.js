@@ -117,7 +117,13 @@ function computeBonusData({ config, milestones, guidanceRanges, employees, fxRat
       ? r.tenure / totalTenureEligible : 0;
     const tenurePortion = tenureContribPct * tenureAllocation;
     const initialPoolUsd = r.initialPerfPortion + tenurePortion;
-    const finalPoolUsd = adjustedPerfPortion + tenurePortion;
+    const salaryCap = r.salaryUsd * 0.05;
+    const uncappedPoolUsd = adjustedPerfPortion + tenurePortion;
+    const hasOverride = r.final_pool_override_usd != null;
+    const finalPoolUsd = hasOverride
+      ? Math.min(parseFloat(r.final_pool_override_usd), salaryCap)
+      : Math.min(uncappedPoolUsd, salaryCap);
+    const capped = (hasOverride ? parseFloat(r.final_pool_override_usd) : uncappedPoolUsd) > salaryCap;
     const finalPoolLcy = usdToLcy(finalPoolUsd, r.currency, rates);
     const eoyCompUsd = r.salaryUsd + r.bonusUsd + r.spotUsd + finalPoolUsd;
     const eoyCompLcy = usdToLcy(eoyCompUsd, r.currency, rates);
@@ -125,7 +131,7 @@ function computeBonusData({ config, milestones, guidanceRanges, employees, fxRat
 
     return {
       ...r, adjustedPerfPortion, tenureContribPct, tenurePortion,
-      initialPoolUsd, finalPoolUsd, finalPoolLcy, eoyCompUsd, eoyCompLcy, eoyBonusPct,
+      initialPoolUsd, finalPoolUsd, finalPoolLcy, salaryCap, capped, eoyCompUsd, eoyCompLcy, eoyBonusPct,
     };
   });
 
