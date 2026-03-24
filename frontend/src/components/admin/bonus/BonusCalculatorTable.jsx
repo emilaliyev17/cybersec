@@ -401,7 +401,7 @@ export default function BonusCalculatorTable() {
     const tenureAllocation = milestonePool * tenureWeight;
 
     const rowsWithPerf = rows.map(r => {
-      const initialPerfPortion = r.perfContribPct * r.salaryUsd;
+      const initialPerfPortion = r.perfContribPct * r.salaryUsd * perfWeight;
       return { ...r, initialPerfPortion };
     });
 
@@ -417,9 +417,13 @@ export default function BonusCalculatorTable() {
     const totalTenureEligible = eligibleWithPerf.reduce((s, r) => s + r.tenure, 0);
 
     const finalRows = rowsWithPerf.map(r => {
-      const adjustedPerfPortion = budgetPct > 0
-        ? r.initialPerfPortion * (1 / budgetPct)
-        : r.initialPerfPortion;
+      // Jon's model: IF(budget>1, InitPerf*(1-budget), InitPerf*(1/budget))
+      // This gives the adjustment DELTA, not the full adjusted value
+      const adjustedPerfPortion = budgetPct > 1
+        ? r.initialPerfPortion * (1 - budgetPct)
+        : budgetPct > 0
+          ? r.initialPerfPortion * (1 / budgetPct)
+          : r.initialPerfPortion;
 
       const tenureContribPct =
         r.is_active && r.eligible && r.initialPerfPortion > 0 && totalTenureEligible > 0
@@ -427,6 +431,7 @@ export default function BonusCalculatorTable() {
           : 0;
       const tenurePortion = tenureContribPct * tenureAllocation;
 
+      // Final = adjustment delta + tenure (NOT initPerf + tenure)
       const initialPoolUsd = r.initialPerfPortion + tenurePortion;
       const salaryCap = r.salaryUsd * 0.05;
       const uncappedPoolUsd = adjustedPerfPortion + tenurePortion;

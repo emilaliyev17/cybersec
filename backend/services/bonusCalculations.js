@@ -100,7 +100,7 @@ function computeBonusData({ config, milestones, guidanceRanges, employees, fxRat
   const tenureAllocation = milestonePool * tenureWeight;
 
   const rowsWithPerf = rows.map(r => {
-    const initialPerfPortion = r.perfContribPct * r.salaryUsd;
+    const initialPerfPortion = r.perfContribPct * r.salaryUsd * perfWeight;
     return { ...r, initialPerfPortion };
   });
 
@@ -112,7 +112,11 @@ function computeBonusData({ config, milestones, guidanceRanges, employees, fxRat
   const totalTenureEligible = eligibleWithPerf.reduce((s, r) => s + r.tenure, 0);
 
   const finalRows = rowsWithPerf.map(r => {
-    const adjustedPerfPortion = budgetPct > 0 ? r.initialPerfPortion * (1 / budgetPct) : r.initialPerfPortion;
+    const adjustedPerfPortion = budgetPct > 1
+      ? r.initialPerfPortion * (1 - budgetPct)
+      : budgetPct > 0
+        ? r.initialPerfPortion * (1 / budgetPct)
+        : r.initialPerfPortion;
     const tenureContribPct = r.is_active && r.eligible && r.initialPerfPortion > 0 && totalTenureEligible > 0
       ? r.tenure / totalTenureEligible : 0;
     const tenurePortion = tenureContribPct * tenureAllocation;
