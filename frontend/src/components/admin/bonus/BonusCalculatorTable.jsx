@@ -89,7 +89,9 @@ export default function BonusCalculatorTable() {
   const [newRowSearch, setNewRowSearch] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const newRowInputRef = useRef(null);
+  const exportMenuRef = useRef(null);
   const dropdownRef = useRef(null);
   const saveTimers = useRef({});
 
@@ -120,6 +122,15 @@ export default function BonusCalculatorTable() {
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  useEffect(() => {
+    if (!exportMenuOpen) return;
+    const handleClick = (e) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target)) setExportMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [exportMenuOpen]);
 
   const saveEmployee = useCallback((empId, updates) => {
     if (saveTimers.current[empId]) clearTimeout(saveTimers.current[empId]);
@@ -177,20 +188,26 @@ export default function BonusCalculatorTable() {
     }
   }, []);
 
-  const handleExportPdf = useCallback(async () => {
+  const handleExport = useCallback(async (format) => {
     setExporting(true);
+    setExportMenuOpen(false);
     try {
-      const res = await axios.get(apiUrl(`/api/bonus/calculator/${CONFIG_ID}/export-pdf`), { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      const endpoint = format === 'excel' ? 'export-excel' : 'export-pdf';
+      const mimeType = format === 'excel'
+        ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        : 'application/pdf';
+      const ext = format === 'excel' ? 'xlsx' : 'pdf';
+      const res = await axios.get(apiUrl(`/api/bonus/calculator/${CONFIG_ID}/${endpoint}`), { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: mimeType }));
       const a = document.createElement('a');
       a.href = url;
-      a.download = `Bonus_Calculator_Report.pdf`;
+      a.download = `Bonus_Calculator_Report.${ext}`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
     } catch (err) {
-      console.error('PDF export failed:', err);
+      console.error(`${format} export failed:`, err);
     } finally {
       setExporting(false);
     }
@@ -542,20 +559,47 @@ export default function BonusCalculatorTable() {
             </svg>
             {isSealed ? 'Unseal' : 'Seal'}
           </button>
-          <button
-            onClick={handleExportPdf}
-            disabled={exporting}
-            className="btn-neon-secondary flex items-center gap-2 text-sm py-2 px-4"
-          >
-            {exporting ? (
-              <span className="animate-spin h-4 w-4 border-2 border-white/30 border-t-white rounded-full" />
-            ) : (
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          <div className="relative" ref={exportMenuRef}>
+            <button
+              onClick={() => setExportMenuOpen(prev => !prev)}
+              disabled={exporting}
+              className="btn-neon-secondary flex items-center gap-2 text-sm py-2 px-4"
+            >
+              {exporting ? (
+                <span className="animate-spin h-4 w-4 border-2 border-white/30 border-t-white rounded-full" />
+              ) : (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              )}
+              Export
+              <svg className="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
+            </button>
+            {exportMenuOpen && (
+              <div className="absolute right-0 mt-1 w-36 bg-gray-900 border border-white/10 rounded-lg shadow-2xl z-50 overflow-hidden">
+                <button
+                  onClick={() => handleExport('pdf')}
+                  className="w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:bg-nano-purple/20 hover:text-white transition-colors flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                  PDF
+                </button>
+                <button
+                  onClick={() => handleExport('excel')}
+                  className="w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:bg-nano-purple/20 hover:text-white transition-colors flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18M9 4v16M15 4v16" />
+                  </svg>
+                  Excel
+                </button>
+              </div>
             )}
-            Export PDF
-          </button>
+          </div>
         </div>
       </div>
       {/* Main Table */}
